@@ -36,7 +36,15 @@ public sealed record ExternalDeliveryFailure(
     string RecipientUserId,
     MessageChannel Channel,
     string Error,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    string? CorrelationId = null);
+
+public sealed record ExternalDeliverySuccess(
+    Guid NotificationId,
+    string RecipientUserId,
+    MessageChannel Channel,
+    DateTimeOffset DeliveredAt,
+    string? CorrelationId = null);
 
 public interface IExternalDeliveryQueue
 {
@@ -52,6 +60,11 @@ public interface IExternalDeliveryDispatcher
 public interface IExternalDeliveryFailureSink
 {
     Task RecordAsync(ExternalDeliveryFailure failure, CancellationToken cancellationToken = default);
+}
+
+public interface IExternalDeliverySuccessSink
+{
+    Task RecordAsync(ExternalDeliverySuccess success, CancellationToken cancellationToken = default);
 }
 
 public interface IMessageSignalSender
