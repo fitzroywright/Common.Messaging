@@ -8,4 +8,9 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <Description>Reusable in-app and external messaging primitives for Aegis applications.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Common.Messaging.UnitTests/**/*.cs" />
+    <EmbeddedResource Remove="Common.Messaging.UnitTests/**" />
+    <None Remove="Common.Messaging.UnitTests/**" />
+  </ItemGroup>
 </Project>
