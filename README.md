@@ -33,6 +33,14 @@ The in-memory queue is bounded and waits when full, providing backpressure inste
 
 Applications may supply optional `ContextId` / `ContextName` values when constructing `QueuedMessageService`. These provide neutral tenant/workspace/application context without coupling Common.Messaging to DevExpress or any specific tenancy system.
 
+## Hosted worker integration
+
+The separate `Common.Messaging.Hosting` project supplies the standard .NET background-service integration without making the core library depend on Microsoft.Extensions.Hosting.
+
+Call `AddCommonMessagingQueuedDelivery(...)` after registering your `IMessageRecipientDirectory`, `IMessageStore`, external channels, and any optional signal/failure handlers. It registers the bounded queue, dispatcher, queue processor, hosted worker, and `QueuedMessageService` as `IMessageService`.
+
+This mirrors the robust background-delivery design used by Aegis NGO while keeping Common.Messaging reusable outside DevExpress/XAF.
+
 ## Real-time signaling
 
 `IMessageSignalSender` is an optional hook used after messages are accepted. Applications can implement it with SignalR, WebSockets, desktop eventing, or another transport so inboxes refresh without polling.
