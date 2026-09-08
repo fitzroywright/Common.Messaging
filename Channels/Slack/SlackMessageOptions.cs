@@ -1,0 +1,6 @@
+namespace Common.Messaging.Channels.Slack;
+
+public sealed class SlackMessageOptions
+{
+    public string BotToken { get; init; } = string.Empty;
+}
