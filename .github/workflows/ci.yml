@@ -12,9 +12,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Restore
+      - name: Restore core tests
         run: dotnet restore Common.Messaging.UnitTests/Common.Messaging.UnitTests.csproj
-      - name: Build
+      - name: Restore hosting integration
+        run: dotnet restore Common.Messaging.Hosting/Common.Messaging.Hosting.csproj
+      - name: Build hosting integration
+        run: dotnet build Common.Messaging.Hosting/Common.Messaging.Hosting.csproj --configuration Release --no-restore
+      - name: Build tests
         run: dotnet build Common.Messaging.UnitTests/Common.Messaging.UnitTests.csproj --configuration Release --no-restore
       - name: Test
         run: dotnet test Common.Messaging.UnitTests/Common.Messaging.UnitTests.csproj --configuration Release --no-build
