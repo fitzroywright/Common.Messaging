@@ -17,7 +17,8 @@ public static class ServiceCollectionExtensions
             new ExternalDeliveryDispatcher(
                 serviceProvider.GetServices<IExternalMessageChannel>(),
                 serviceProvider.GetRequiredService<ExternalDeliveryOptions>(),
-                serviceProvider.GetService<IExternalDeliveryFailureSink>()));
+                serviceProvider.GetService<IExternalDeliveryFailureSink>(),
+                serviceProvider.GetService<IExternalDeliverySuccessSink>()));
         services.AddSingleton<ExternalDeliveryProcessor>();
         services.AddHostedService<ExternalDeliveryHostedService>();
 
