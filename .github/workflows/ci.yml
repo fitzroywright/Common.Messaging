@@ -12,5 +12,5 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - run: dotnet restore src/Common.Messaging/Common.Messaging.csproj
-      - run: dotnet build src/Common.Messaging/Common.Messaging.csproj --configuration Release --no-restore
+      - run: dotnet restore Common.Messaging.csproj
+      - run: dotnet build Common.Messaging.csproj --configuration Release --no-restore
