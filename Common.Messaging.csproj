@@ -12,5 +12,8 @@
     <Compile Remove="Common.Messaging.UnitTests/**/*.cs" />
     <EmbeddedResource Remove="Common.Messaging.UnitTests/**" />
     <None Remove="Common.Messaging.UnitTests/**" />
+    <Compile Remove="Common.Messaging.Hosting/**/*.cs" />
+    <EmbeddedResource Remove="Common.Messaging.Hosting/**" />
+    <None Remove="Common.Messaging.Hosting/**" />
   </ItemGroup>
 </Project>
