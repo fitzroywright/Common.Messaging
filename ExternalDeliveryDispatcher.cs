@@ -5,15 +5,18 @@ public sealed class ExternalDeliveryDispatcher : IExternalDeliveryDispatcher
     private readonly IReadOnlyList<IExternalMessageChannel> channels;
     private readonly ExternalDeliveryOptions options;
     private readonly IExternalDeliveryFailureSink? failureSink;
+    private readonly IExternalDeliverySuccessSink? successSink;
 
     public ExternalDeliveryDispatcher(
         IEnumerable<IExternalMessageChannel> channels,
         ExternalDeliveryOptions? options = null,
-        IExternalDeliveryFailureSink? failureSink = null)
+        IExternalDeliveryFailureSink? failureSink = null,
+        IExternalDeliverySuccessSink? successSink = null)
     {
         this.channels = channels?.ToArray() ?? throw new ArgumentNullException(nameof(channels));
         this.options = options ?? new ExternalDeliveryOptions();
         this.failureSink = failureSink;
+        this.successSink = successSink;
     }
 
     public Task DeliverAsync(
@@ -120,6 +123,18 @@ public sealed class ExternalDeliveryDispatcher : IExternalDeliveryDispatcher
                 recipient.PreferredChannels);
 
             await channel.SendAsync(resolved, item.Request, item.NotificationId, cancellationToken);
+
+            if (successSink is not null)
+            {
+                await successSink.RecordAsync(
+                    new ExternalDeliverySuccess(
+                        item.NotificationId,
+                        recipient.UserId,
+                        channel.Channel,
+                        DateTimeOffset.UtcNow,
+                        item.Request.CorrelationId),
+                    cancellationToken);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -138,7 +153,8 @@ public sealed class ExternalDeliveryDispatcher : IExternalDeliveryDispatcher
                     recipient.UserId,
                     channel.Channel,
                     exception.Message,
-                    DateTimeOffset.UtcNow),
+                    DateTimeOffset.UtcNow,
+                    item.Request.CorrelationId),
                 cancellationToken);
         }
     }
