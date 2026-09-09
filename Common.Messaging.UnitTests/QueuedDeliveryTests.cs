@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Xunit;
 
 namespace Common.Messaging.UnitTests;
@@ -224,7 +225,7 @@ public sealed class QueuedDeliveryTests
     private sealed class RecordingChannel(MessageChannel channel, bool shouldFail = false) : IExternalMessageChannel
     {
         public MessageChannel Channel { get; } = channel;
-        public List<string> Sends { get; } = [];
+        public ConcurrentBag<string> Sends { get; } = [];
 
         public Task SendAsync(
             MessageRecipient recipient,

@@ -10,5 +10,6 @@ public enum MessageChannel
     MsEmail = 8,
     Slack = 16,
     WhatsApp = 32,
-    AudioAlert = 64
+    AudioAlert = 64,
+    Sms = 128
 }

@@ -8,8 +8,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Common.Messaging.csproj" />
+    <ProjectReference Include="..\Common.Diagnostics\Common.Diagnostics.csproj" Condition="Exists('..\Common.Diagnostics\Common.Diagnostics.csproj')" />
+    <ProjectReference Include="..\Common.Secrets\Common.Secrets.csproj" Condition="Exists('..\Common.Secrets\Common.Secrets.csproj')" />
+    <ProjectReference Include="..\..\Common.Diagnostics\Common.Diagnostics.csproj" Condition="!Exists('..\Common.Diagnostics\Common.Diagnostics.csproj') And Exists('..\..\Common.Diagnostics\Common.Diagnostics.csproj')" />
+    <ProjectReference Include="..\..\Common.Secrets\Common.Secrets.csproj" Condition="!Exists('..\Common.Secrets\Common.Secrets.csproj') And Exists('..\..\Common.Secrets\Common.Secrets.csproj')" />
   </ItemGroup>
 </Project>

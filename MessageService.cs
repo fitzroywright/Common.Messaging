@@ -119,7 +119,7 @@ public sealed class MessageService : IMessageService
             string error = string.Join(
                 "; ",
                 outcomes.Failures.Select(failure =>
-                    $"{failure.Channel} for {failure.RecipientUserId}: {failure.Error}"));
+                    $"{failure.Channel} for {failure.RecipientUserId}: {failure.ErrorCode}"));
             return new MessageSendResult(notificationId, false, error);
         }
 
