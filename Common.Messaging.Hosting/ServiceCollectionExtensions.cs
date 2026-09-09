@@ -1,6 +1,7 @@
 namespace Common.Messaging.Hosting;
 
 using Common.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -18,10 +19,14 @@ public static class ServiceCollectionExtensions
 
         if (durable)
         {
-            services.AddSingleton<FileExternalDeliveryQueue>();
-            services.AddSingleton<IExternalDeliveryQueue>(provider => provider.GetRequiredService<FileExternalDeliveryQueue>());
-            services.AddSingleton<IExternalDeliveryQueueHealth>(provider => provider.GetRequiredService<FileExternalDeliveryQueue>());
-            services.AddSingleton<IExternalDeliveryIdempotencyStore, FileExternalDeliveryIdempotencyStore>();
+            services.AddSingleton(provider =>
+                new ConfiguredExternalDeliveryStore(
+                    provider.GetService<IConfiguration>(),
+                    provider.GetRequiredService<ExternalDeliveryOptions>()));
+            services.AddSingleton<IExternalDeliveryQueue>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
+            services.AddSingleton<IExternalDeliveryQueueHealth>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
+            services.AddSingleton<IExternalDeliveryDeadLetterStore>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
+            services.AddSingleton<IExternalDeliveryIdempotencyStore>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
         }
         else
         {
