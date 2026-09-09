@@ -19,7 +19,7 @@ public sealed class CommonSecretsChannelSecretResolver : IChannelSecretResolver
     }
 }
 
-public sealed class CommonMessagingDiagnosticCheck : IDiagnosticCheck
+public sealed class CommonMessagingDiagnosticCheck : ILeveledDiagnosticCheck
 {
     private readonly IExternalDeliveryQueueHealth queueHealth;
 
@@ -29,6 +29,8 @@ public sealed class CommonMessagingDiagnosticCheck : IDiagnosticCheck
     }
 
     public string Name => "Common.Messaging";
+
+    public DiagnosticLevel Level => DiagnosticLevel.Level4;
 
     public async Task<DiagnosticResult> RunAsync(CancellationToken cancellationToken = default)
     {
