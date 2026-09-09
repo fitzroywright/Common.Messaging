@@ -6,7 +6,7 @@
     <PackageId>Common.Messaging</PackageId>
     <Version>1.0.0</Version>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Description>Reusable in-app and external messaging primitives for Aegis applications.</Description>
+    <Description>Reusable in-app and external messaging primitives.</Description>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Common.Messaging.UnitTests/**/*.cs" />
@@ -15,5 +15,11 @@
     <Compile Remove="Common.Messaging.Hosting/**/*.cs" />
     <EmbeddedResource Remove="Common.Messaging.Hosting/**" />
     <None Remove="Common.Messaging.Hosting/**" />
+    <Compile Remove="Common.Diagnostics/**/*.cs" />
+    <EmbeddedResource Remove="Common.Diagnostics/**" />
+    <None Remove="Common.Diagnostics/**" />
+    <Compile Remove="Common.Secrets/**/*.cs" />
+    <EmbeddedResource Remove="Common.Secrets/**" />
+    <None Remove="Common.Secrets/**" />
   </ItemGroup>
 </Project>
