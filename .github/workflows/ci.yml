@@ -9,9 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout Common.Diagnostics
+        uses: actions/checkout@v4
+        with:
+          repository: fitzroywright/Common.Diagnostics
+          path: Common.Diagnostics
+
+      - name: Checkout Common.Secrets
+        uses: actions/checkout@v4
+        with:
+          repository: fitzroywright/Common.Secrets
+          path: Common.Secrets
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
       - name: Restore core tests
         run: dotnet restore Common.Messaging.UnitTests/Common.Messaging.UnitTests.csproj
       - name: Restore hosting integration
