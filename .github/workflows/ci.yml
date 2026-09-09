@@ -7,6 +7,22 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: common_messaging_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d common_messaging_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      COMMON_MESSAGING_POSTGRES: Host=127.0.0.1;Port=5432;Database=common_messaging_test;Username=postgres;Password=postgres
     steps:
       - uses: actions/checkout@v4
 
