@@ -90,10 +90,10 @@ public sealed class PostgreSqlMultiNodeIntegrationTests
         }
 
         const string recipient = "employee-1";
-        await nodeA.MarkDeliveredAsync(item.NotificationId, recipient, MessageChannel.Email);
-        Assert.True(await nodeB.HasDeliveredAsync(item.NotificationId, recipient, MessageChannel.Email));
-        await nodeB.MarkDeliveredAsync(item.NotificationId, recipient, MessageChannel.Email);
-        Assert.True(await nodeA.HasDeliveredAsync(item.NotificationId, recipient, MessageChannel.Email));
+        await nodeA.MarkDeliveredAsync(item.NotificationId, recipient, MessageChannel.Smtp);
+        Assert.True(await nodeB.HasDeliveredAsync(item.NotificationId, recipient, MessageChannel.Smtp));
+        await nodeB.MarkDeliveredAsync(item.NotificationId, recipient, MessageChannel.Smtp);
+        Assert.True(await nodeA.HasDeliveredAsync(item.NotificationId, recipient, MessageChannel.Smtp));
     }
 
     private static ExternalDeliveryWorkItem CreateItem()
@@ -104,7 +104,7 @@ public sealed class PostgreSqlMultiNodeIntegrationTests
             RecipientIds = ["employee-1"],
             Title = "Integration test",
             Body = "PostgreSQL multi-node durability",
-            Channels = MessageChannel.Email,
+            Channels = MessageChannel.Smtp,
             Source = "Common.Messaging.Tests",
             CorrelationId = id.ToString("N")
         };
@@ -112,8 +112,8 @@ public sealed class PostgreSqlMultiNodeIntegrationTests
         return new ExternalDeliveryWorkItem
         (
             id,
-            [new RecipientSnapshot("employee-1", "Employee One", "employee@example.test", null, null, MessageChannel.Email)],
-            MessageChannel.Email,
+            [new RecipientSnapshot("employee-1", "Employee One", "employee@example.test", null, null, MessageChannel.Smtp)],
+            MessageChannel.Smtp,
             request,
             "integration-test",
             "PostgreSQL",
