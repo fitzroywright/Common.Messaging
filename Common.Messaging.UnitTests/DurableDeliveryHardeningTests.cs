@@ -87,6 +87,71 @@ public sealed class DurableDeliveryHardeningTests
         }
     }
 
+    [Fact]
+    public async Task DeadLetter_CanBeInspectedReplayedAndCompleted()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "common-messaging-tests", Guid.NewGuid().ToString("N"));
+        ExternalDeliveryOptions options = new() { DurableQueuePath = path, LeaseDuration = TimeSpan.FromSeconds(1) };
+        FileExternalDeliveryQueue queue = new(options);
+        Guid id = Guid.NewGuid();
+        ExternalDeliveryWorkItem failed = CreateWorkItem(id) with { Attempt = 5 };
+
+        try
+        {
+            await queue.DeadLetterAsync(failed, "DELIVERY_HTTP_ERROR");
+
+            IReadOnlyList<ExternalDeliveryDeadLetter> deadLetters = await queue.GetDeadLettersAsync();
+            ExternalDeliveryDeadLetter deadLetter = Assert.Single(deadLetters);
+            Assert.Equal(id, deadLetter.Item.NotificationId);
+            Assert.Equal("DELIVERY_HTTP_ERROR", deadLetter.ErrorCode);
+
+            Assert.True(await queue.ReplayAsync(id));
+            ExternalDeliveryQueueHealth afterReplay = await queue.CheckHealthAsync();
+            Assert.Equal(1, afterReplay.Pending);
+            Assert.Equal(0, afterReplay.DeadLettered);
+
+            using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(3));
+            await foreach (ExternalDeliveryWorkItem replayed in queue.ReadAllAsync(timeout.Token))
+            {
+                Assert.Equal(id, replayed.NotificationId);
+                Assert.Equal(0, replayed.Attempt);
+                await queue.CompleteAsync(id, timeout.Token);
+                break;
+            }
+
+            ExternalDeliveryQueueHealth completed = await queue.CheckHealthAsync();
+            Assert.Equal(0, completed.Pending);
+            Assert.Equal(0, completed.DeadLettered);
+        }
+        finally
+        {
+            if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+    }
+
+    [Fact]
+    public async Task ReplayAll_MovesEveryDeadLetterBackToPending()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "common-messaging-tests", Guid.NewGuid().ToString("N"));
+        FileExternalDeliveryQueue queue = new(new ExternalDeliveryOptions { DurableQueuePath = path });
+        try
+        {
+            await queue.DeadLetterAsync(CreateWorkItem(Guid.NewGuid()), "FAIL_A");
+            await queue.DeadLetterAsync(CreateWorkItem(Guid.NewGuid()), "FAIL_B");
+
+            int replayed = await queue.ReplayAllAsync();
+            ExternalDeliveryQueueHealth health = await queue.CheckHealthAsync();
+
+            Assert.Equal(2, replayed);
+            Assert.Equal(2, health.Pending);
+            Assert.Equal(0, health.DeadLettered);
+        }
+        finally
+        {
+            if (Directory.Exists(path)) Directory.Delete(path, true);
+        }
+    }
+
     private static ExternalDeliveryWorkItem CreateWorkItem(Guid id)
     {
         RecipientSnapshot recipient = new("user-1", "User", "u@example.com", null, null, MessageChannel.MsEmail);
