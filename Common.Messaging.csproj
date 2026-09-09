@@ -9,6 +9,9 @@
     <Description>Reusable in-app and external messaging primitives.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="Common.Messaging.UnitTests/**/*.cs" />
     <EmbeddedResource Remove="Common.Messaging.UnitTests/**" />
     <None Remove="Common.Messaging.UnitTests/**" />
