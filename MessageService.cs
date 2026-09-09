@@ -2,25 +2,24 @@ namespace Common.Messaging;
 
 public sealed class MessageService : IMessageService
 {
-    private readonly IMessageRecipientDirectory recipients;
+    private readonly IMessageRecipientDirectory recipientDirectory;
     private readonly IMessageStore store;
     private readonly IReadOnlyList<IExternalMessageChannel> externalChannels;
-    private readonly ExternalDeliveryOptions deliveryOptions;
+    private readonly string? contextId;
+    private readonly string? contextName;
 
     public MessageService(
-        IMessageRecipientDirectory recipients,
+        IMessageRecipientDirectory recipientDirectory,
         IMessageStore store,
-        IEnumerable<IExternalMessageChannel> externalChannels,
-        ExternalDeliveryOptions? deliveryOptions = null)
+        IEnumerable<IExternalMessageChannel>? externalChannels = null,
+        string? contextId = null,
+        string? contextName = null)
     {
-        this.recipients = recipients ?? throw new ArgumentNullException(nameof(recipients));
+        this.recipientDirectory = recipientDirectory ?? throw new ArgumentNullException(nameof(recipientDirectory));
         this.store = store ?? throw new ArgumentNullException(nameof(store));
-        this.externalChannels = externalChannels?.ToArray() ?? throw new ArgumentNullException(nameof(externalChannels));
-        this.deliveryOptions = deliveryOptions ?? new ExternalDeliveryOptions
-        {
-            DeliveryMode = ExternalDeliveryMode.ParallelByRecipient,
-            MaxConcurrency = 4
-        };
+        this.externalChannels = externalChannels?.ToArray() ?? [];
+        this.contextId = contextId;
+        this.contextName = contextName;
     }
 
     public async Task<MessageSendResult> SendAsync(
@@ -29,74 +28,58 @@ public sealed class MessageService : IMessageService
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        Guid notificationId = Guid.NewGuid();
         if (request.RecipientIds.Count == 0)
         {
-            return new MessageSendResult(notificationId, false, "No recipients were supplied.");
+            return new MessageSendResult(Guid.Empty, false, "At least one recipient is required.");
         }
 
-        IReadOnlyList<MessageRecipient> resolved = await recipients.ResolveAsync(
-            request.RecipientIds,
-            cancellationToken);
-        if (resolved.Count == 0)
+        IReadOnlyList<MessageRecipient> recipients = await recipientDirectory
+            .ResolveAsync(request.RecipientIds, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (recipients.Count == 0)
         {
-            return new MessageSendResult(notificationId, false, "No recipients were resolved.");
+            return new MessageSendResult(Guid.Empty, false, "No recipients could be resolved.");
         }
 
-        foreach (MessageRecipient recipient in resolved)
+        Guid notificationId = Guid.NewGuid();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        foreach (MessageRecipient recipient in recipients)
         {
-            MessageChannel effectiveChannels = request.Channels == MessageChannel.None
-                ? recipient.PreferredChannels
-                : request.Channels;
-
-            if ((effectiveChannels & MessageChannel.InApp) != 0)
+            if ((request.Channels & MessageChannel.InApp) != 0)
             {
-                await store.AddAsync(
-                    new MessageNotification(
-                        notificationId,
-                        recipient.UserId,
-                        request.Title,
-                        request.Body,
-                        request.Severity,
-                        request.Source,
-                        request.CorrelationId,
-                        DateTimeOffset.UtcNow),
-                    cancellationToken);
+                MessageNotification notification = new(
+                    notificationId,
+                    recipient.UserId,
+                    request.Title,
+                    request.Body,
+                    request.Severity,
+                    now,
+                    request.ExpiresAt,
+                    request.CorrelationId,
+                    contextId,
+                    contextName,
+                    request.Metadata);
+                await store.AddAsync(notification, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        MessageChannel requestedExternalChannels = request.Channels & ~MessageChannel.InApp;
-        bool hasExternalDelivery = request.Channels == MessageChannel.None
-            ? resolved.Any(recipient => (recipient.PreferredChannels & ~MessageChannel.InApp) != 0)
-            : requestedExternalChannels != MessageChannel.None;
-
-        if (!hasExternalDelivery)
+        MessageChannel externalRequested = request.Channels & ~MessageChannel.InApp;
+        if (externalRequested == MessageChannel.None)
         {
             return new MessageSendResult(notificationId, true);
         }
 
         DeliveryOutcomeSink outcomes = new();
-        ExternalDeliveryDispatcher dispatcher = new(
-            externalChannels,
-            deliveryOptions,
-            outcomes,
-            outcomes);
-
-        IReadOnlyList<RecipientSnapshot> snapshots = resolved
-            .Select(recipient =>
-            {
-                MessageChannel effectiveChannels = request.Channels == MessageChannel.None
-                    ? recipient.PreferredChannels
-                    : request.Channels;
-
-                return new RecipientSnapshot(
-                    recipient.UserId,
-                    recipient.UserName,
-                    recipient.Email,
-                    recipient.SlackUserId,
-                    recipient.Mobile,
-                    effectiveChannels);
-            })
+        ExternalDeliveryDispatcher dispatcher = new(externalChannels, failureSink: outcomes, successSink: outcomes);
+        RecipientSnapshot[] snapshots = recipients
+            .Select(recipient => new RecipientSnapshot(
+                recipient.UserId,
+                recipient.UserName,
+                recipient.Email,
+                recipient.SlackUserId,
+                recipient.Mobile,
+                recipient.PreferredChannels))
             .ToArray();
 
         ExternalDeliveryWorkItem workItem = new(
@@ -104,22 +87,22 @@ public sealed class MessageService : IMessageService
             snapshots,
             request.Channels,
             request,
-            request.Metadata is not null && request.Metadata.TryGetValue("ContextId", out string? contextId)
-                ? contextId
-                : null,
-            request.Metadata is not null && request.Metadata.TryGetValue("ContextName", out string? contextName)
-                ? contextName
-                : null,
+            request.Metadata is not null && request.Metadata.TryGetValue("ContextId", out string? metadataContextId)
+                ? metadataContextId
+                : contextId,
+            request.Metadata is not null && request.Metadata.TryGetValue("ContextName", out string? metadataContextName)
+                ? metadataContextName
+                : contextName,
             DateTimeOffset.UtcNow);
 
-        await dispatcher.DeliverAsync(workItem, cancellationToken);
+        await dispatcher.DeliverAsync(workItem, cancellationToken).ConfigureAwait(false);
 
         if (outcomes.Failures.Count > 0)
         {
             string error = string.Join(
                 "; ",
                 outcomes.Failures.Select(failure =>
-                    $"{failure.Channel} for {failure.RecipientUserId}: {failure.Error}"));
+                    $"{failure.Channel} for {failure.RecipientUserId}: {failure.ErrorCode}"));
             return new MessageSendResult(notificationId, false, error);
         }
 
@@ -131,17 +114,13 @@ public sealed class MessageService : IMessageService
         public List<ExternalDeliveryFailure> Failures { get; } = [];
         public List<ExternalDeliverySuccess> Successes { get; } = [];
 
-        public Task RecordAsync(
-            ExternalDeliveryFailure failure,
-            CancellationToken cancellationToken = default)
+        public Task RecordAsync(ExternalDeliveryFailure failure, CancellationToken cancellationToken = default)
         {
             Failures.Add(failure);
             return Task.CompletedTask;
         }
 
-        public Task RecordAsync(
-            ExternalDeliverySuccess success,
-            CancellationToken cancellationToken = default)
+        public Task RecordAsync(ExternalDeliverySuccess success, CancellationToken cancellationToken = default)
         {
             Successes.Add(success);
             return Task.CompletedTask;
