@@ -31,6 +31,52 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IExternalDeliveryIdempotencyStore, InMemoryExternalDeliveryIdempotencyStore>();
         }
 
+        AddQueuedDeliveryCore(services);
+        return services;
+    }
+
+    public static IServiceCollection AddCommonMessagingPostgreSqlDelivery(
+        this IServiceCollection services,
+        string connectionString,
+        string queueName,
+        ExternalDeliveryOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        ArgumentException.ThrowIfNullOrWhiteSpace(queueName);
+
+        ExternalDeliveryOptions resolvedOptions = options ?? new ExternalDeliveryOptions();
+        services.AddSingleton(resolvedOptions);
+        services.AddSingleton(provider =>
+            new PostgreSqlExternalDeliveryStore(
+                connectionString,
+                provider.GetRequiredService<ExternalDeliveryOptions>(),
+                queueName));
+        services.AddSingleton<IExternalDeliveryQueue>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
+        services.AddSingleton<IExternalDeliveryQueueHealth>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
+        services.AddSingleton<IExternalDeliveryDeadLetterStore>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
+        services.AddSingleton<IExternalDeliveryIdempotencyStore>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
+
+        AddQueuedDeliveryCore(services);
+        return services;
+    }
+
+    public static IServiceCollection AddCommonMessagingDiagnostics(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.AddScoped<IDiagnosticCheck, CommonMessagingDiagnosticCheck>();
+        return services;
+    }
+
+    public static IServiceCollection AddCommonMessagingSecrets(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.TryAddSingleton<IChannelSecretResolver, CommonSecretsChannelSecretResolver>();
+        return services;
+    }
+
+    private static void AddQueuedDeliveryCore(IServiceCollection services)
+    {
         services.TryAddSingleton<MessagingDeliveryTelemetrySink>();
         services.TryAddSingleton<IExternalDeliveryFailureSink>(provider => provider.GetRequiredService<MessagingDeliveryTelemetrySink>());
         services.TryAddSingleton<IExternalDeliverySuccessSink>(provider => provider.GetRequiredService<MessagingDeliveryTelemetrySink>());
@@ -56,21 +102,5 @@ public static class ServiceCollectionExtensions
                 serviceProvider.GetRequiredService<IMessageStore>(),
                 serviceProvider.GetRequiredService<IExternalDeliveryQueue>(),
                 serviceProvider.GetService<IMessageSignalSender>()));
-
-        return services;
-    }
-
-    public static IServiceCollection AddCommonMessagingDiagnostics(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        services.AddScoped<IDiagnosticCheck, CommonMessagingDiagnosticCheck>();
-        return services;
-    }
-
-    public static IServiceCollection AddCommonMessagingSecrets(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        services.TryAddSingleton<IChannelSecretResolver, CommonSecretsChannelSecretResolver>();
-        return services;
     }
 }
