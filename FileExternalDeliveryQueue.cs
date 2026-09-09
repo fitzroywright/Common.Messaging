@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Common.Messaging;
 
-public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExternalDeliveryQueueHealth
+public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExternalDeliveryQueueHealth, IExternalDeliveryDeadLetterStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ExternalDeliveryOptions options;
@@ -96,10 +96,63 @@ public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExterna
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorCode);
         QueueEnvelope envelope = new(item, DateTimeOffset.MaxValue, errorCode);
         await WriteAtomicallyAsync(DeadFile(item.NotificationId), envelope, cancellationToken).ConfigureAwait(false);
         DeleteIfExists(LeasedFile(item.NotificationId));
         DeleteIfExists(PendingFile(item.NotificationId));
+    }
+
+    public async Task<IReadOnlyList<ExternalDeliveryDeadLetter>> GetDeadLettersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        EnsureDirectories();
+        List<ExternalDeliveryDeadLetter> deadLetters = [];
+        foreach (string file in Directory.EnumerateFiles(deadPath, "*.json").OrderBy(path => path, StringComparer.Ordinal))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            QueueEnvelope? envelope = await ReadEnvelopeAsync(file, cancellationToken).ConfigureAwait(false);
+            if (envelope is null) continue;
+            string errorCode = string.IsNullOrWhiteSpace(envelope.ErrorCode) ? "DELIVERY_FAILED" : envelope.ErrorCode;
+            DateTimeOffset deadLetteredAt = new(File.GetLastWriteTimeUtc(file), TimeSpan.Zero);
+            deadLetters.Add(new ExternalDeliveryDeadLetter(envelope.Item, errorCode, deadLetteredAt));
+        }
+        return deadLetters;
+    }
+
+    public async ValueTask<bool> ReplayAsync(
+        Guid notificationId,
+        CancellationToken cancellationToken = default)
+    {
+        string deadFile = DeadFile(notificationId);
+        QueueEnvelope? envelope = await ReadEnvelopeAsync(deadFile, cancellationToken).ConfigureAwait(false);
+        if (envelope is null) return false;
+
+        ExternalDeliveryWorkItem replay = envelope.Item with
+        {
+            Attempt = 0,
+            EnqueuedAt = DateTimeOffset.UtcNow
+        };
+        await WriteAtomicallyAsync(
+            PendingFile(notificationId),
+            new QueueEnvelope(replay, DateTimeOffset.UtcNow, null),
+            cancellationToken).ConfigureAwait(false);
+        DeleteIfExists(deadFile);
+        return true;
+    }
+
+    public async ValueTask<int> ReplayAllAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ExternalDeliveryDeadLetter> deadLetters = await GetDeadLettersAsync(cancellationToken).ConfigureAwait(false);
+        int replayed = 0;
+        foreach (ExternalDeliveryDeadLetter deadLetter in deadLetters)
+        {
+            if (await ReplayAsync(deadLetter.Item.NotificationId, cancellationToken).ConfigureAwait(false))
+            {
+                replayed++;
+            }
+        }
+        return replayed;
     }
 
     public Task<ExternalDeliveryQueueHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
@@ -142,6 +195,7 @@ public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExterna
 
     private async Task<QueueEnvelope?> ReadEnvelopeAsync(string path, CancellationToken cancellationToken)
     {
+        if (!File.Exists(path)) return null;
         try
         {
             await using FileStream stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
