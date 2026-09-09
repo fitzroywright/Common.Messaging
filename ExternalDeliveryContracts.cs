@@ -67,6 +67,11 @@ public sealed record ExternalDeliveryQueueHealth(
     long DeadLettered,
     string Message);
 
+public sealed record ExternalDeliveryDeadLetter(
+    ExternalDeliveryWorkItem Item,
+    string ErrorCode,
+    DateTimeOffset DeadLetteredAt);
+
 public interface IExternalDeliveryQueue
 {
     ValueTask EnqueueAsync(ExternalDeliveryWorkItem item, CancellationToken cancellationToken = default);
@@ -80,6 +85,13 @@ public interface IExternalDeliveryQueue
 
     ValueTask DeadLetterAsync(ExternalDeliveryWorkItem item, string errorCode, CancellationToken cancellationToken = default)
         => ValueTask.CompletedTask;
+}
+
+public interface IExternalDeliveryDeadLetterStore
+{
+    Task<IReadOnlyList<ExternalDeliveryDeadLetter>> GetDeadLettersAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> ReplayAsync(Guid notificationId, CancellationToken cancellationToken = default);
+    ValueTask<int> ReplayAllAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IExternalDeliveryQueueHealth
