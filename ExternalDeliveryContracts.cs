@@ -17,6 +17,15 @@ public sealed class ExternalDeliveryOptions
     public TimeSpan MaxRetryDelay { get; init; } = TimeSpan.FromMinutes(5);
     public TimeSpan LeaseDuration { get; init; } = TimeSpan.FromMinutes(2);
     public string DurableQueuePath { get; init; } = "data/common-messaging";
+
+    public long PendingWarningThreshold { get; init; } = 25;
+    public long PendingCriticalThreshold { get; init; } = 100;
+    public long DeadLetterWarningThreshold { get; init; } = 1;
+    public long DeadLetterCriticalThreshold { get; init; } = 10;
+    public long RetryWarningThreshold { get; init; } = 10;
+    public long ExpiredLeaseCriticalThreshold { get; init; } = 1;
+    public TimeSpan OldestPendingWarningAge { get; init; } = TimeSpan.FromMinutes(10);
+    public TimeSpan OldestPendingCriticalAge { get; init; } = TimeSpan.FromMinutes(30);
 }
 
 public sealed record RecipientSnapshot(
@@ -65,7 +74,13 @@ public sealed record ExternalDeliveryQueueHealth(
     bool IsAvailable,
     long Pending,
     long DeadLettered,
-    string Message);
+    string Message,
+    long Ready = 0,
+    long Leased = 0,
+    long Retrying = 0,
+    long ExpiredLeases = 0,
+    TimeSpan? OldestPendingAge = null,
+    string? QueueName = null);
 
 public sealed record ExternalDeliveryDeadLetter(
     ExternalDeliveryWorkItem Item,
