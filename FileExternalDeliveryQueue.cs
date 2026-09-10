@@ -73,6 +73,7 @@ public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExterna
 
     public ValueTask CompleteAsync(Guid notificationId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         DeleteIfExists(LeasedFile(notificationId));
         DeleteIfExists(PendingFile(notificationId));
         return ValueTask.CompletedTask;
@@ -147,12 +148,42 @@ public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExterna
         int replayed = 0;
         foreach (ExternalDeliveryDeadLetter deadLetter in deadLetters)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (await ReplayAsync(deadLetter.Item.NotificationId, cancellationToken).ConfigureAwait(false))
             {
                 replayed++;
             }
         }
         return replayed;
+    }
+
+    public ValueTask<bool> DiscardAsync(Guid notificationId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string path = DeadFile(notificationId);
+        if (!File.Exists(path)) return ValueTask.FromResult(false);
+        File.Delete(path);
+        return ValueTask.FromResult(true);
+    }
+
+    public ValueTask<int> DiscardAllAsync(CancellationToken cancellationToken = default)
+    {
+        EnsureDirectories();
+        int discarded = 0;
+        foreach (string path in Directory.EnumerateFiles(deadPath, "*.json").ToArray())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                File.Delete(path);
+                discarded++;
+            }
+            catch (FileNotFoundException)
+            {
+                // Another administrator or worker already removed it.
+            }
+        }
+        return ValueTask.FromResult(discarded);
     }
 
     public Task<ExternalDeliveryQueueHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
@@ -214,13 +245,19 @@ public sealed class FileExternalDeliveryQueue : IExternalDeliveryQueue, IExterna
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         string temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        await using (FileStream stream = File.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        try
         {
-            await JsonSerializer.SerializeAsync(stream, envelope, JsonOptions, cancellationToken).ConfigureAwait(false);
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            await using (FileStream stream = File.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                await JsonSerializer.SerializeAsync(stream, envelope, JsonOptions, cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+            File.Move(temp, path, true);
         }
-
-        File.Move(temp, path, true);
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
     }
 
     private void EnsureDirectories()
