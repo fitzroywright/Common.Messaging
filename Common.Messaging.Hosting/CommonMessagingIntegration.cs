@@ -22,10 +22,12 @@ public sealed class CommonSecretsChannelSecretResolver : IChannelSecretResolver
 public sealed class CommonMessagingDiagnosticCheck : ILeveledDiagnosticCheck
 {
     private readonly IExternalDeliveryQueueHealth queueHealth;
+    private readonly ExternalDeliveryOptions options;
 
-    public CommonMessagingDiagnosticCheck(IExternalDeliveryQueueHealth queueHealth)
+    public CommonMessagingDiagnosticCheck(IExternalDeliveryQueueHealth queueHealth, ExternalDeliveryOptions options)
     {
         this.queueHealth = queueHealth ?? throw new ArgumentNullException(nameof(queueHealth));
+        this.options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public string Name => "Common.Messaging";
@@ -36,15 +38,47 @@ public sealed class CommonMessagingDiagnosticCheck : ILeveledDiagnosticCheck
     {
         DateTimeOffset started = DateTimeOffset.UtcNow;
         ExternalDeliveryQueueHealth health = await queueHealth.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
-        DiagnosticStatus status = !health.IsAvailable
-            ? DiagnosticStatus.Unhealthy
-            : health.DeadLettered > 0
-                ? DiagnosticStatus.Warning
-                : DiagnosticStatus.Healthy;
+
+        DiagnosticStatus status;
+        if (!health.IsAvailable)
+        {
+            status = DiagnosticStatus.Unhealthy;
+        }
+        else if (health.DeadLettered >= options.DeadLetterCriticalThreshold ||
+                 health.Pending >= options.PendingCriticalThreshold ||
+                 health.ExpiredLeases >= options.ExpiredLeaseCriticalThreshold ||
+                 health.OldestPendingAge >= options.OldestPendingCriticalAge)
+        {
+            status = DiagnosticStatus.Unhealthy;
+        }
+        else if (health.DeadLettered >= options.DeadLetterWarningThreshold ||
+                 health.Pending >= options.PendingWarningThreshold ||
+                 health.Retrying >= options.RetryWarningThreshold ||
+                 health.OldestPendingAge >= options.OldestPendingWarningAge)
+        {
+            status = DiagnosticStatus.Warning;
+        }
+        else
+        {
+            status = DiagnosticStatus.Healthy;
+        }
+
+        string oldest = health.OldestPendingAge.HasValue
+            ? FormatAge(health.OldestPendingAge.Value)
+            : "none";
+        string queueName = string.IsNullOrWhiteSpace(health.QueueName) ? "default" : health.QueueName;
         string message = health.IsAvailable
-            ? $"Queue available. Pending={health.Pending}; DeadLettered={health.DeadLettered}."
-            : "Messaging queue is unavailable.";
+            ? $"Queue={queueName}; Pending={health.Pending}; Ready={health.Ready}; Leased={health.Leased}; Retrying={health.Retrying}; ExpiredLeases={health.ExpiredLeases}; DeadLettered={health.DeadLettered}; OldestPending={oldest}."
+            : $"Queue={queueName}; messaging queue metrics are unavailable.";
+
         return new DiagnosticResult(Name, status, message, DateTimeOffset.UtcNow - started);
+    }
+
+    private static string FormatAge(TimeSpan age)
+    {
+        if (age.TotalHours >= 1) return $"{age.TotalHours:F1}h";
+        if (age.TotalMinutes >= 1) return $"{age.TotalMinutes:F1}m";
+        return $"{Math.Max(0, age.TotalSeconds):F0}s";
     }
 }
 
