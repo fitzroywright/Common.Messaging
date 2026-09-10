@@ -13,7 +13,7 @@ internal sealed class ConfiguredExternalDeliveryStore :
     private readonly IExternalDeliveryQueueHealth health;
     private readonly IExternalDeliveryDeadLetterStore deadLetters;
     private readonly IExternalDeliveryIdempotencyStore idempotency;
-    private readonly IAsyncDisposable? asyncDisposable;
+    private readonly List<IAsyncDisposable> asyncDisposables = [];
 
     public ConfiguredExternalDeliveryStore(IConfiguration? configuration, ExternalDeliveryOptions options)
     {
@@ -38,11 +38,13 @@ internal sealed class ConfiguredExternalDeliveryStore :
 
             string queueName = configuration?["CommonMessaging:Durability:QueueName"]?.Trim() ?? "default";
             PostgreSqlExternalDeliveryStore postgres = new(connectionString, options, queueName);
+            PostgreSqlExternalDeliveryQueueHealth metrics = new(connectionString, queueName);
             this.queue = postgres;
-            this.health = postgres;
+            this.health = metrics;
             this.deadLetters = postgres;
             this.idempotency = postgres;
-            this.asyncDisposable = postgres;
+            this.asyncDisposables.Add(postgres);
+            this.asyncDisposables.Add(metrics);
             return;
         }
 
@@ -94,9 +96,9 @@ internal sealed class ConfiguredExternalDeliveryStore :
 
     public async ValueTask DisposeAsync()
     {
-        if (this.asyncDisposable is not null)
+        foreach (IAsyncDisposable disposable in this.asyncDisposables)
         {
-            await this.asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            await disposable.DisposeAsync().ConfigureAwait(false);
         }
     }
 }
