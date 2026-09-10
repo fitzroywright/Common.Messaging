@@ -107,6 +107,8 @@ public interface IExternalDeliveryDeadLetterStore
     Task<IReadOnlyList<ExternalDeliveryDeadLetter>> GetDeadLettersAsync(CancellationToken cancellationToken = default);
     ValueTask<bool> ReplayAsync(Guid notificationId, CancellationToken cancellationToken = default);
     ValueTask<int> ReplayAllAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> DiscardAsync(Guid notificationId, CancellationToken cancellationToken = default);
+    ValueTask<int> DiscardAllAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IExternalDeliveryQueueHealth
