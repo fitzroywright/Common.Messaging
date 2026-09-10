@@ -7,12 +7,14 @@ internal sealed class ConfiguredExternalDeliveryStore :
     IExternalDeliveryQueueHealth,
     IExternalDeliveryDeadLetterStore,
     IExternalDeliveryIdempotencyStore,
+    IExternalDeliveryMaintenance,
     IAsyncDisposable
 {
     private readonly IExternalDeliveryQueue queue;
     private readonly IExternalDeliveryQueueHealth health;
     private readonly IExternalDeliveryDeadLetterStore deadLetters;
     private readonly IExternalDeliveryIdempotencyStore idempotency;
+    private readonly IExternalDeliveryMaintenance maintenance;
     private readonly List<IAsyncDisposable> asyncDisposables = [];
 
     public ConfiguredExternalDeliveryStore(IConfiguration? configuration, ExternalDeliveryOptions options)
@@ -39,12 +41,15 @@ internal sealed class ConfiguredExternalDeliveryStore :
             string queueName = configuration?["CommonMessaging:Durability:QueueName"]?.Trim() ?? "default";
             PostgreSqlExternalDeliveryStore postgres = new(connectionString, options, queueName);
             PostgreSqlExternalDeliveryQueueHealth metrics = new(connectionString, queueName);
+            PostgreSqlExternalDeliveryMaintenance postgresMaintenance = new(connectionString, queueName);
             this.queue = postgres;
             this.health = metrics;
             this.deadLetters = postgres;
             this.idempotency = postgres;
+            this.maintenance = postgresMaintenance;
             this.asyncDisposables.Add(postgres);
             this.asyncDisposables.Add(metrics);
+            this.asyncDisposables.Add(postgresMaintenance);
             return;
         }
 
@@ -59,6 +64,7 @@ internal sealed class ConfiguredExternalDeliveryStore :
         this.health = fileQueue;
         this.deadLetters = fileQueue;
         this.idempotency = new FileExternalDeliveryIdempotencyStore(options);
+        this.maintenance = new FileExternalDeliveryMaintenance(options);
     }
 
     public ValueTask EnqueueAsync(ExternalDeliveryWorkItem item, CancellationToken cancellationToken = default)
@@ -99,6 +105,11 @@ internal sealed class ConfiguredExternalDeliveryStore :
 
     public Task MarkDeliveredAsync(Guid notificationId, string recipientUserId, MessageChannel channel, CancellationToken cancellationToken = default)
         => this.idempotency.MarkDeliveredAsync(notificationId, recipientUserId, channel, cancellationToken);
+
+    public Task<ExternalDeliveryMaintenanceResult> PruneAsync(
+        ExternalDeliveryRetentionOptions options,
+        CancellationToken cancellationToken = default)
+        => this.maintenance.PruneAsync(options, cancellationToken);
 
     public async ValueTask DisposeAsync()
     {
