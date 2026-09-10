@@ -41,6 +41,22 @@ Call `AddCommonMessagingQueuedDelivery(...)` after registering your `IMessageRec
 
 This mirrors the robust background-delivery design used by Aegis NGO while keeping Common.Messaging reusable outside DevExpress/XAF.
 
+## Dead-letter administration
+
+Durable providers expose `IExternalDeliveryDeadLetterStore` for operational administration. Dead letters can be inspected, replayed individually, replayed in bulk, discarded individually, or discarded in bulk. Discard is explicit and irreversible; normal delivery processing never silently removes dead letters.
+
+PostgreSQL schema initialization is serialized with a database advisory transaction lock so simultaneous first-start from multiple application nodes does not race creation of the shared queue tables or sequence.
+
+## Retention maintenance
+
+Retention cleanup is explicit and opt-in through `IExternalDeliveryMaintenance`. Nothing is automatically pruned merely because the library is registered.
+
+`FileExternalDeliveryMaintenance` removes expired file-backed delivery-receipt markers. `PostgreSqlExternalDeliveryMaintenance` removes completed queue rows and expired delivery receipts for one queue name. `ExternalDeliveryRetentionOptions` defaults both completed-message and delivery-receipt retention to 30 days.
+
+Delivery receipts are the durable idempotency record. Shortening `DeliveryReceiptRetention` therefore shortens the period during which Common.Messaging can prove that a recipient/channel delivery already occurred. Choose that value deliberately based on the application's retry/replay and audit requirements.
+
+Dead letters are not affected by retention maintenance. They remain until replayed or explicitly discarded through `IExternalDeliveryDeadLetterStore`.
+
 ## Real-time signaling
 
 `IMessageSignalSender` is an optional hook used after messages are accepted. Applications can implement it with SignalR, WebSockets, desktop eventing, or another transport so inboxes refresh without polling.
