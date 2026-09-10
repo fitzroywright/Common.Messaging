@@ -88,6 +88,12 @@ internal sealed class ConfiguredExternalDeliveryStore :
     public ValueTask<int> ReplayAllAsync(CancellationToken cancellationToken = default)
         => this.deadLetters.ReplayAllAsync(cancellationToken);
 
+    public ValueTask<bool> DiscardAsync(Guid notificationId, CancellationToken cancellationToken = default)
+        => this.deadLetters.DiscardAsync(notificationId, cancellationToken);
+
+    public ValueTask<int> DiscardAllAsync(CancellationToken cancellationToken = default)
+        => this.deadLetters.DiscardAllAsync(cancellationToken);
+
     public Task<bool> HasDeliveredAsync(Guid notificationId, string recipientUserId, MessageChannel channel, CancellationToken cancellationToken = default)
         => this.idempotency.HasDeliveredAsync(notificationId, recipientUserId, channel, cancellationToken);
 
