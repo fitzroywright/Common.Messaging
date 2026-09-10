@@ -184,6 +184,27 @@ WHERE queue_name = @queue AND state = 'dead';");
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<bool> DiscardAsync(Guid notificationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+        await using NpgsqlCommand command = dataSource.CreateCommand(@"
+DELETE FROM common_messaging_queue
+WHERE queue_name = @queue AND notification_id = @id AND state = 'dead';");
+        command.Parameters.AddWithValue("queue", queueName);
+        command.Parameters.AddWithValue("id", notificationId);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
+    }
+
+    public async ValueTask<int> DiscardAllAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken).ConfigureAwait(false);
+        await using NpgsqlCommand command = dataSource.CreateCommand(@"
+DELETE FROM common_messaging_queue
+WHERE queue_name = @queue AND state = 'dead';");
+        command.Parameters.AddWithValue("queue", queueName);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<ExternalDeliveryQueueHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
         try
