@@ -14,6 +14,7 @@ public sealed class PostgreSqlExternalDeliveryStore :
     IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const long SchemaAdvisoryLockKey = 0x434D53475343484D;
     private readonly NpgsqlDataSource dataSource;
     private readonly ExternalDeliveryOptions options;
     private readonly string queueName;
@@ -301,7 +302,17 @@ RETURNING q.payload_json::text;", connection, transaction);
         try
         {
             if (initialized) return;
-            await using NpgsqlCommand command = dataSource.CreateCommand(@"
+
+            await using NpgsqlConnection connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+            await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (NpgsqlCommand lockCommand = new("SELECT pg_advisory_xact_lock(@key);", connection, transaction))
+            {
+                lockCommand.Parameters.AddWithValue("key", SchemaAdvisoryLockKey);
+                await lockCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await using (NpgsqlCommand command = new(@"
 CREATE TABLE IF NOT EXISTS common_messaging_queue (
     id bigserial PRIMARY KEY,
     queue_name text NOT NULL,
@@ -327,8 +338,12 @@ CREATE TABLE IF NOT EXISTS common_messaging_delivery_receipts (
     channel integer NOT NULL,
     delivered_at timestamptz NOT NULL,
     PRIMARY KEY (queue_name, notification_id, recipient_user_id, channel)
-);");
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+);", connection, transaction))
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             initialized = true;
         }
         finally
