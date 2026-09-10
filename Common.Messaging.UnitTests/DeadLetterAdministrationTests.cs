@@ -75,14 +75,24 @@ public sealed class DeadLetterAdministrationTests : IDisposable
     }
 
     private static ExternalDeliveryWorkItem CreateItem()
-        => new(
+    {
+        MessageRequest request = new()
+        {
+            RecipientIds = ["user-1"],
+            Title = "Test",
+            Body = "Body",
+            Channels = MessageChannel.MsEmail
+        };
+
+        return new ExternalDeliveryWorkItem(
             Guid.NewGuid(),
-            [new RecipientSnapshot("user-1", "Test User", "test@example.invalid", null, null, MessageChannel.Email)],
-            MessageChannel.Email,
-            new MessageRequest("Test", "Body"),
+            [new RecipientSnapshot("user-1", "Test User", "test@example.invalid", null, null, MessageChannel.MsEmail)],
+            MessageChannel.MsEmail,
+            request,
             null,
             null,
             DateTimeOffset.UtcNow);
+    }
 
     public void Dispose()
     {
