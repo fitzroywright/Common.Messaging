@@ -27,6 +27,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IExternalDeliveryQueueHealth>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
             services.AddSingleton<IExternalDeliveryDeadLetterStore>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
             services.AddSingleton<IExternalDeliveryIdempotencyStore>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
+            services.AddSingleton<IExternalDeliveryMaintenance>(provider => provider.GetRequiredService<ConfiguredExternalDeliveryStore>());
         }
         else
         {
@@ -61,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IExternalDeliveryQueueHealth>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
         services.AddSingleton<IExternalDeliveryDeadLetterStore>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
         services.AddSingleton<IExternalDeliveryIdempotencyStore>(provider => provider.GetRequiredService<PostgreSqlExternalDeliveryStore>());
+        services.AddSingleton<IExternalDeliveryMaintenance>(_ => new PostgreSqlExternalDeliveryMaintenance(connectionString, queueName));
 
         AddQueuedDeliveryCore(services);
         return services;
