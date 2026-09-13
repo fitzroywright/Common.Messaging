@@ -4,6 +4,7 @@ using Common.Messaging.Channels.Slack;
 using Common.Messaging.Channels.Sms;
 using Common.Messaging.Channels.Smtp;
 using Common.Messaging.Channels.Teams;
+using Common.Messaging.Channels.WhatsApp;
 using Microsoft.Extensions.DependencyInjection;
 
 public static class ChannelServiceCollectionExtensions
@@ -41,6 +42,15 @@ public static class ChannelServiceCollectionExtensions
         services.AddSingleton(options);
         services.AddSingleton<IExternalMessageChannel>(provider =>
             new SmsMessageChannel(new HttpClient(), options, provider.GetService<IChannelSecretResolver>()));
+        return services;
+    }
+
+    public static IServiceCollection AddWhatsAppMessagingChannel(this IServiceCollection services, WhatsAppMessageOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.AddSingleton(options);
+        services.AddSingleton<IExternalMessageChannel>(provider =>
+            new WhatsAppMessageChannel(new HttpClient(), options, provider.GetService<IChannelSecretResolver>()));
         return services;
     }
 }
