@@ -6,6 +6,8 @@ using System.Text.Json;
 
 public sealed class SlackMessageChannel : IExternalMessageChannel
 {
+    public const string ChannelMetadataKey = "slack.channel";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient httpClient;
     private readonly SlackMessageOptions options;
@@ -23,12 +25,24 @@ public sealed class SlackMessageChannel : IExternalMessageChannel
     public async Task SendAsync(MessageRecipient recipient, MessageRequest request, Guid notificationId, CancellationToken cancellationToken = default)
     {
         string token = await ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(recipient.SlackUserId))
+        string channelId;
+
+        if (request.Metadata is not null &&
+            request.Metadata.TryGetValue(ChannelMetadataKey, out string? configuredChannel) &&
+            !string.IsNullOrWhiteSpace(configuredChannel))
         {
-            throw new InvalidOperationException("Recipient has no Slack user ID.");
+            channelId = configuredChannel.Trim();
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(recipient.SlackUserId))
+            {
+                throw new InvalidOperationException("Recipient has no Slack user ID and no Slack channel target was supplied.");
+            }
+
+            channelId = await OpenDmChannelAsync(recipient.SlackUserId, token, cancellationToken).ConfigureAwait(false);
         }
 
-        string channelId = await OpenDmChannelAsync(recipient.SlackUserId, token, cancellationToken).ConfigureAwait(false);
         await PostMessageAsync(channelId, BuildMessage(request), token, cancellationToken).ConfigureAwait(false);
     }
 
