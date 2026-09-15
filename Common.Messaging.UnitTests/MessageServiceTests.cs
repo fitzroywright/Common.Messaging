@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Xunit;
 
 namespace Common.Messaging.UnitTests;
@@ -168,7 +169,7 @@ public sealed class MessageServiceTests
     private sealed class RecordingChannel(MessageChannel channel) : IExternalMessageChannel
     {
         public MessageChannel Channel { get; } = channel;
-        public List<RecordingSend> Sends { get; } = [];
+        public ConcurrentQueue<RecordingSend> Sends { get; } = new();
 
         public Task SendAsync(
             MessageRecipient recipient,
@@ -176,7 +177,7 @@ public sealed class MessageServiceTests
             Guid notificationId,
             CancellationToken cancellationToken = default)
         {
-            Sends.Add(new RecordingSend(recipient, request, notificationId));
+            Sends.Enqueue(new RecordingSend(recipient, request, notificationId));
             return Task.CompletedTask;
         }
     }
