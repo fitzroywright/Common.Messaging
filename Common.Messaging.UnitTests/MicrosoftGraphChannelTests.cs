@@ -48,7 +48,7 @@ public sealed class MicrosoftGraphChannelTests
         {
             string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/me", StringComparison.Ordinal))
-                return Json(HttpStatusCode.OK, "{\"id\":\"sender-id\"}");
+                return Json(HttpStatusCode.OK, "{\"id\":\"sender-id\",\"userPrincipalName\":\"svc@example.org\"}");
             if (path.Contains("/users/", StringComparison.Ordinal))
                 return Json(HttpStatusCode.OK, "{\"id\":\"recipient-id\"}");
             if (path.EndsWith("/chats", StringComparison.Ordinal))
