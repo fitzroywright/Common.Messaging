@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Common.Messaging.Channels.MicrosoftGraph;
+using Xunit;
 
 namespace Common.Messaging.UnitTests;
 
