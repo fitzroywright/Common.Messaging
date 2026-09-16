@@ -70,6 +70,9 @@ public sealed class MicrosoftGraphTeamsMessageChannel : IExternalMessageChannel
         {
             if (!string.IsNullOrWhiteSpace(senderId)) return senderId;
             using JsonDocument document = await SendGraphForJsonAsync(HttpMethod.Get, "https://graph.microsoft.com/v1.0/me?$select=id,userPrincipalName", null, token, cancellationToken).ConfigureAwait(false);
+            string resolvedUpn = RequiredString(document.RootElement, "userPrincipalName", "Microsoft Graph did not return the Teams sender UPN.");
+            if (!string.Equals(resolvedUpn, options.SenderUpn.Trim(), StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Microsoft Graph Teams token belongs to '{resolvedUpn}', not configured sender '{options.SenderUpn.Trim()}'.");
             senderId = RequiredString(document.RootElement, "id", "Microsoft Graph did not return the Teams sender identity.");
             return senderId;
         }
@@ -134,7 +137,7 @@ public sealed class MicrosoftGraphTeamsMessageChannel : IExternalMessageChannel
     private async Task SendMessageAsync(string chatId, string htmlBody, string token, CancellationToken cancellationToken)
     {
         object body = new { body = new { contentType = "html", content = htmlBody } };
-        using JsonDocument _ = await SendGraphForJsonAsync(
+        using JsonDocument ignored = await SendGraphForJsonAsync(
             HttpMethod.Post,
             $"https://graph.microsoft.com/v1.0/chats/{Uri.EscapeDataString(chatId)}/messages",
             body,
