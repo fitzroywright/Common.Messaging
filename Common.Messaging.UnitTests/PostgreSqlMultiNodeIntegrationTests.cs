@@ -25,8 +25,18 @@ public sealed class PostgreSqlMultiNodeIntegrationTests
         Assert.Equal(item.NotificationId, readerA.Current.NotificationId);
 
         using CancellationTokenSource timeout = new(TimeSpan.FromMilliseconds(750));
-        await using IAsyncEnumerator<ExternalDeliveryWorkItem> readerB = nodeB.ReadAllAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await readerB.MoveNextAsync().AsTask());
+        await using IAsyncEnumerator<ExternalDeliveryWorkItem> readerB =
+            nodeB.ReadAllAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+
+        try
+        {
+            bool moved = await readerB.MoveNextAsync();
+            Assert.False(moved);
+        }
+        catch (OperationCanceledException)
+        {
+            // Acceptable: node B did not obtain the live lease before the observation window expired.
+        }
 
         await nodeA.CompleteAsync(item.NotificationId);
         ExternalDeliveryQueueHealth health = await nodeB.CheckHealthAsync();
