@@ -107,7 +107,7 @@ public sealed class MessagingDeliveryTelemetrySink : IExternalDeliveryFailureSin
     public Task RecordAsync(ExternalDeliverySuccess success, CancellationToken cancellationToken = default)
     {
         logger.LogInformation(
-            "MSG101 Delivery succeeded. NotificationId={NotificationId} Recipient={Recipient} Channel={Channel} CorrelationId={CorrelationId}",
+            "MSG101 Provider accepted outbound message. NotificationId={NotificationId} Recipient={Recipient} Channel={Channel} CorrelationId={CorrelationId}",
             success.NotificationId,
             success.RecipientUserId,
             success.Channel,
