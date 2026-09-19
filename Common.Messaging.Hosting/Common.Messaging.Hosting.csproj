@@ -12,10 +12,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common.Messaging.csproj" />
-    <ProjectReference Include="..\Common.Diagnostics\Common.Diagnostics.csproj" Condition="Exists('..\Common.Diagnostics\Common.Diagnostics.csproj')" />
-    <ProjectReference Include="..\Common.Secrets\Common.Secrets.csproj" Condition="Exists('..\Common.Secrets\Common.Secrets.csproj')" />
-    <ProjectReference Include="..\..\Common.Diagnostics\Common.Diagnostics.csproj" Condition="!Exists('..\Common.Diagnostics\Common.Diagnostics.csproj') And Exists('..\..\Common.Diagnostics\Common.Diagnostics.csproj')" />
-    <ProjectReference Include="..\..\Common.Secrets\Common.Secrets.csproj" Condition="!Exists('..\Common.Secrets\Common.Secrets.csproj') And Exists('..\..\Common.Secrets\Common.Secrets.csproj')" />
+    <ProjectReference Include="..\Common.Messaging.csproj" AdditionalProperties="Configuration=$(Configuration)" />
+    <ProjectReference Include="..\Common.Diagnostics\Common.Diagnostics.csproj" Condition="Exists('..\Common.Diagnostics\Common.Diagnostics.csproj')" AdditionalProperties="Configuration=$(Configuration)" />
+    <ProjectReference Include="..\Common.Secrets\Common.Secrets.csproj" Condition="Exists('..\Common.Secrets\Common.Secrets.csproj')" AdditionalProperties="Configuration=$(Configuration)" />
+    <ProjectReference Include="..\..\Common.Diagnostics\Common.Diagnostics.csproj" Condition="!Exists('..\Common.Diagnostics\Common.Diagnostics.csproj') And Exists('..\..\Common.Diagnostics\Common.Diagnostics.csproj')" AdditionalProperties="Configuration=$(Configuration)" />
+    <ProjectReference Include="..\..\Common.Secrets\Common.Secrets.csproj" Condition="!Exists('..\Common.Secrets\Common.Secrets.csproj') And Exists('..\..\Common.Secrets\Common.Secrets.csproj')" AdditionalProperties="Configuration=$(Configuration)" />
   </ItemGroup>
 </Project>
