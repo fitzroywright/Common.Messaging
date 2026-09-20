@@ -25,4 +25,10 @@
     <EmbeddedResource Remove="Common.Secrets/**" />
     <None Remove="Common.Secrets/**" />
   </ItemGroup>
+  <ItemGroup Condition="Exists('Common.Diagnostics/Common.Diagnostics.csproj')">
+    <ProjectReference Include="Common.Diagnostics/Common.Diagnostics.csproj" AdditionalProperties="Configuration=$(Configuration)" />
+  </ItemGroup>
+  <ItemGroup Condition="!Exists('Common.Diagnostics/Common.Diagnostics.csproj') And Exists('../Common.Diagnostics/Common.Diagnostics.csproj')">
+    <ProjectReference Include="../Common.Diagnostics/Common.Diagnostics.csproj" AdditionalProperties="Configuration=$(Configuration)" />
+  </ItemGroup>
 </Project>
