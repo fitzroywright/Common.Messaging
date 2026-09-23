@@ -2,12 +2,12 @@ namespace Common.Messaging.Hosting;
 
 using Common.Diagnostics;
 
-public abstract class CommonMessagingQueueLevelXTest : ILevelXLocalTest
+public abstract class CommonMessagingQueueDiagnosticLevelTest : IDiagnosticLevelLocalTest
 {
     protected readonly IExternalDeliveryQueueHealth QueueHealth;
     protected readonly ExternalDeliveryOptions Options;
 
-    protected CommonMessagingQueueLevelXTest(IExternalDeliveryQueueHealth queueHealth, ExternalDeliveryOptions options)
+    protected CommonMessagingQueueDiagnosticLevelTest(IExternalDeliveryQueueHealth queueHealth, ExternalDeliveryOptions options)
     {
         QueueHealth = queueHealth ?? throw new ArgumentNullException(nameof(queueHealth));
         Options = options ?? throw new ArgumentNullException(nameof(options));
@@ -24,9 +24,9 @@ public abstract class CommonMessagingQueueLevelXTest : ILevelXLocalTest
         => QueueHealth.CheckHealthAsync(cancellationToken);
 }
 
-public sealed class MessagingQueueAvailableLevelXTest(
+public sealed class MessagingQueueAvailableDiagnosticLevelTest(
     IExternalDeliveryQueueHealth queueHealth,
-    ExternalDeliveryOptions options) : CommonMessagingQueueLevelXTest(queueHealth, options)
+    ExternalDeliveryOptions options) : CommonMessagingQueueDiagnosticLevelTest(queueHealth, options)
 {
     public override string TestId => "COMMON.MESSAGING.L5.QUEUE.AVAILABLE";
     public override string Name => "Outbound queue health available";
@@ -43,9 +43,9 @@ public sealed class MessagingQueueAvailableLevelXTest(
     private static string Redact(string? value) => string.IsNullOrWhiteSpace(value) ? "No provider detail supplied." : "Provider reported unavailable.";
 }
 
-public sealed class MessagingQueueBacklogLevelXTest(
+public sealed class MessagingQueueBacklogDiagnosticLevelTest(
     IExternalDeliveryQueueHealth queueHealth,
-    ExternalDeliveryOptions options) : CommonMessagingQueueLevelXTest(queueHealth, options)
+    ExternalDeliveryOptions options) : CommonMessagingQueueDiagnosticLevelTest(queueHealth, options)
 {
     public override string TestId => "COMMON.MESSAGING.L4.QUEUE.BACKLOG";
     public override string Name => "Outbound queue backlog within threshold";
@@ -63,9 +63,9 @@ public sealed class MessagingQueueBacklogLevelXTest(
     }
 }
 
-public sealed class MessagingDeadLetterLevelXTest(
+public sealed class MessagingDeadLetterDiagnosticLevelTest(
     IExternalDeliveryQueueHealth queueHealth,
-    ExternalDeliveryOptions options) : CommonMessagingQueueLevelXTest(queueHealth, options)
+    ExternalDeliveryOptions options) : CommonMessagingQueueDiagnosticLevelTest(queueHealth, options)
 {
     public override string TestId => "COMMON.MESSAGING.L4.QUEUE.DEADLETTER";
     public override string Name => "Dead-letter volume within threshold";
@@ -83,9 +83,9 @@ public sealed class MessagingDeadLetterLevelXTest(
     }
 }
 
-public sealed class MessagingRetryLevelXTest(
+public sealed class MessagingRetryDiagnosticLevelTest(
     IExternalDeliveryQueueHealth queueHealth,
-    ExternalDeliveryOptions options) : CommonMessagingQueueLevelXTest(queueHealth, options)
+    ExternalDeliveryOptions options) : CommonMessagingQueueDiagnosticLevelTest(queueHealth, options)
 {
     public override string TestId => "COMMON.MESSAGING.L4.QUEUE.RETRIES";
     public override string Name => "Retry volume within threshold";
@@ -101,9 +101,9 @@ public sealed class MessagingRetryLevelXTest(
     }
 }
 
-public sealed class MessagingExpiredLeaseLevelXTest(
+public sealed class MessagingExpiredLeaseDiagnosticLevelTest(
     IExternalDeliveryQueueHealth queueHealth,
-    ExternalDeliveryOptions options) : CommonMessagingQueueLevelXTest(queueHealth, options)
+    ExternalDeliveryOptions options) : CommonMessagingQueueDiagnosticLevelTest(queueHealth, options)
 {
     public override string TestId => "COMMON.MESSAGING.L4.QUEUE.EXPIRED_LEASES";
     public override string Name => "Expired delivery leases absent";
@@ -119,9 +119,9 @@ public sealed class MessagingExpiredLeaseLevelXTest(
     }
 }
 
-public sealed class MessagingOldestPendingLevelXTest(
+public sealed class MessagingOldestPendingDiagnosticLevelTest(
     IExternalDeliveryQueueHealth queueHealth,
-    ExternalDeliveryOptions options) : CommonMessagingQueueLevelXTest(queueHealth, options)
+    ExternalDeliveryOptions options) : CommonMessagingQueueDiagnosticLevelTest(queueHealth, options)
 {
     public override string TestId => "COMMON.MESSAGING.L4.QUEUE.OLDEST_PENDING";
     public override string Name => "Oldest pending message age within threshold";
@@ -140,7 +140,7 @@ public sealed class MessagingOldestPendingLevelXTest(
     }
 }
 
-public sealed class MessagingDeliveryOptionsLevelXTest(ExternalDeliveryOptions options) : ILevelXLocalTest
+public sealed class MessagingDeliveryOptionsDiagnosticLevelTest(ExternalDeliveryOptions options) : IDiagnosticLevelLocalTest
 {
     private readonly ExternalDeliveryOptions options = options ?? throw new ArgumentNullException(nameof(options));
     public string TestId => "COMMON.MESSAGING.L5.CONFIG.DELIVERY_OPTIONS";
@@ -165,7 +165,7 @@ public sealed class MessagingDeliveryOptionsLevelXTest(ExternalDeliveryOptions o
     }
 }
 
-public sealed class MessagingChannelsRegisteredLevelXTest(IEnumerable<IExternalMessageChannel> channels) : ILevelXLocalTest
+public sealed class MessagingChannelsRegisteredDiagnosticLevelTest(IEnumerable<IExternalMessageChannel> channels) : IDiagnosticLevelLocalTest
 {
     private readonly IExternalMessageChannel[] channels = (channels ?? throw new ArgumentNullException(nameof(channels))).ToArray();
     public string TestId => "COMMON.MESSAGING.L5.CHANNELS.REGISTERED";

@@ -72,14 +72,14 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddScoped<IDiagnosticCheck, CommonMessagingDiagnosticCheck>();
-        services.AddSingleton<ILevelXLocalTest, MessagingQueueAvailableLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingDeliveryOptionsLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingChannelsRegisteredLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingQueueBacklogLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingDeadLetterLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingRetryLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingExpiredLeaseLevelXTest>();
-        services.AddSingleton<ILevelXLocalTest, MessagingOldestPendingLevelXTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingQueueAvailableDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingDeliveryOptionsDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingChannelsRegisteredDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingQueueBacklogDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingDeadLetterDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingRetryDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingExpiredLeaseDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingOldestPendingDiagnosticLevelTest>();
         return services;
     }
 
