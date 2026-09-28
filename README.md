@@ -71,3 +71,20 @@ Common.Messaging does not directly reference Common.Secrets or Common.Security. 
 ## Current maturity
 
 The messaging engine, queued delivery, durable file/PostgreSQL stores, idempotency, dead-letter administration, retention maintenance, channel implementations, hosting integration, and automated tests are implemented on `main`. Remaining work is primarily operational proof in real consumers: exercise actual external endpoints/credentials, force delivery failures, verify retry/dead-letter/replay behavior, and validate the PostgreSQL durable queue in the intended deployment environment.
+
+
+### Microsoft Graph report emails
+
+`MessageRequest.Attachments` accepts `MessageAttachment(FileName, ContentType, Content)`
+for the Microsoft Graph email channel. `BodyIsHtml` defaults to `true`, preserving
+existing Graph callers; set it to `false` for plain-text reports. The Graph provider
+supports up to 2.5 MB combined raw attachment bytes and a 4 MB serialized payload.
+Oversized messages fail explicitly before an HTTP request; large-attachment upload
+sessions are not implemented. Other external channels do not consume this new
+attachment property.
+
+`MicrosoftGraphEmailOptions.SkipSenderRecipient` defaults to `true` for compatibility.
+Applications that need to send reports or Test Email to their own sender mailbox
+can set it to `false`. Successful `sendMail` means provider acceptance, not confirmed
+mailbox delivery. Applications with an existing durable queue can call the channel
+from that queue and retain their own retry and correlation records.

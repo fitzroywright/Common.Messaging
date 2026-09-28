@@ -37,8 +37,35 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel
         if (string.IsNullOrWhiteSpace(options.SenderUpn))
             throw new InvalidOperationException("Microsoft Graph email SenderUpn is required.");
 
-        if (string.Equals(options.SenderUpn.Trim(), recipient.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+        if (options.SkipSenderRecipient && string.Equals(options.SenderUpn.Trim(), recipient.Email.Trim(), StringComparison.OrdinalIgnoreCase))
             return;
+
+        // Use the small-attachment sendMail API. Larger reports must not be silently truncated.
+        if (request.Attachments.Sum(attachment => (long)attachment.Content.Length) > 2_500_000)
+            throw new InvalidOperationException("Microsoft Graph email attachments exceed the supported 2.5 MB total. Split the report before retrying.");
+
+        byte[] payload = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            message = new
+            {
+                subject = string.IsNullOrWhiteSpace(request.Title) ? "(no subject)" : request.Title,
+                body = new { contentType = request.BodyIsHtml ? "HTML" : "Text", content = request.Body ?? string.Empty },
+                toRecipients = new[]
+                {
+                    new { emailAddress = new { address = recipient.Email.Trim() } }
+                },
+                attachments = request.Attachments.Select(attachment => new Dictionary<string, object>
+                {
+                    ["@odata.type"] = "#microsoft.graph.fileAttachment",
+                    ["name"] = attachment.FileName,
+                    ["contentType"] = attachment.ContentType,
+                    ["contentBytes"] = Convert.ToBase64String(attachment.Content)
+                }).ToArray()
+            },
+            saveToSentItems = true
+        });
+        if (payload.Length > 4_000_000)
+            throw new InvalidOperationException("Microsoft Graph email payload exceeds the supported 4 MB total. Split the report before retrying.");
 
         string clientSecret = await ResolveSecretAsync(
             options.ClientSecretName,
@@ -52,19 +79,8 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel
             HttpMethod.Post,
             $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(options.SenderUpn.Trim())}/sendMail");
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        message.Content = JsonContent.Create(new
-        {
-            message = new
-            {
-                subject = string.IsNullOrWhiteSpace(request.Title) ? "(no subject)" : request.Title,
-                body = new { contentType = "HTML", content = request.Body ?? string.Empty },
-                toRecipients = new[]
-                {
-                    new { emailAddress = new { address = recipient.Email.Trim() } }
-                }
-            },
-            saveToSentItems = true
-        });
+        message.Content = new ByteArrayContent(payload);
+        message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
         using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)

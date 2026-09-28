@@ -5,12 +5,16 @@ public sealed class MessageRequest
     public IReadOnlyCollection<string> RecipientIds { get; init; } = Array.Empty<string>();
     public string Title { get; init; } = string.Empty;
     public string Body { get; init; } = string.Empty;
+    public bool BodyIsHtml { get; init; } = true;
+    public IReadOnlyCollection<MessageAttachment> Attachments { get; init; } = Array.Empty<MessageAttachment>();
     public MessageSeverity Severity { get; init; } = MessageSeverity.Information;
     public MessageChannel Channels { get; init; } = MessageChannel.InApp;
     public string? Source { get; init; }
     public string? CorrelationId { get; init; }
     public IReadOnlyDictionary<string, string>? Metadata { get; init; }
 }
+
+public sealed record MessageAttachment(string FileName, string ContentType, byte[] Content);
 
 public sealed record MessageNotification(
     Guid Id,
