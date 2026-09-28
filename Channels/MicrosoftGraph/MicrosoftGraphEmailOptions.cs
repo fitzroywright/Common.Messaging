@@ -7,4 +7,5 @@ public sealed class MicrosoftGraphEmailOptions
     public string ClientSecret { get; init; } = string.Empty;
     public string ClientSecretName { get; init; } = "messaging/msgraph/client-secret";
     public string SenderUpn { get; init; } = string.Empty;
+    public bool SkipSenderRecipient { get; init; } = true;
 }
