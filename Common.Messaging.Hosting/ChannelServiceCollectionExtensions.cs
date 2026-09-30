@@ -1,5 +1,7 @@
 namespace Common.Messaging.Hosting;
 
+using Common.Diagnostics;
+
 using Common.Messaging.Channels.MicrosoftGraph;
 using Common.Messaging.Channels.Slack;
 using Common.Messaging.Channels.Sms;
@@ -33,8 +35,12 @@ public static class ChannelServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
         services.AddSingleton(options);
-        services.AddSingleton<IExternalMessageChannel>(provider =>
+        services.AddSingleton<MicrosoftGraphEmailMessageChannel>(provider =>
             new MicrosoftGraphEmailMessageChannel(new HttpClient(), options, provider.GetService<IChannelSecretResolver>()));
+        services.AddSingleton<IExternalMessageChannel>(provider =>
+            provider.GetRequiredService<MicrosoftGraphEmailMessageChannel>());
+        services.AddSingleton<IDependencyDiagnosticProbe>(provider =>
+            provider.GetRequiredService<MicrosoftGraphEmailMessageChannel>());
         return services;
     }
 
