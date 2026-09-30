@@ -61,31 +61,17 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
         try
         {
             string accessToken = await AcquireAppTokenAsync(clientSecret, cancellationToken).ConfigureAwait(false);
-            using HttpRequestMessage request = new(
-                HttpMethod.Get,
-                $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(options.SenderUpn.Trim())}/mailFolders/inbox?$select=id,displayName,totalItemCount,unreadItemCount");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-            {
-                return new MessagingProviderHealth(
-                    "Microsoft Graph Email",
-                    true,
-                    false,
-                    MessageDeliveryState.Failed,
-                    DateTimeOffset.UtcNow,
-                    DateTimeOffset.UtcNow - started,
-                    $"Mailbox probe returned HTTP {(int)response.StatusCode}.");
-            }
-
+            bool mailSendGranted = HasApplicationRole(accessToken, "Mail.Send");
             return new MessagingProviderHealth(
                 "Microsoft Graph Email",
                 true,
-                true,
-                MessageDeliveryState.ProviderAccepted,
+                mailSendGranted,
+                mailSendGranted ? MessageDeliveryState.ProviderAccepted : MessageDeliveryState.Failed,
                 DateTimeOffset.UtcNow,
                 DateTimeOffset.UtcNow - started,
-                $"Credentials are valid and sender mailbox '{options.SenderUpn.Trim()}' is accessible.");
+                mailSendGranted
+                    ? $"Microsoft Entra ID accepted the configured credentials and the access token contains the Mail.Send application role for sender '{options.SenderUpn.Trim()}'."
+                    : "Microsoft Entra ID accepted the credentials, but the access token does not contain the Mail.Send application role.");
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -96,7 +82,7 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
                 MessageDeliveryState.Failed,
                 DateTimeOffset.UtcNow,
                 DateTimeOffset.UtcNow - started,
-                exception is HttpRequestException ? "Microsoft Graph authentication or mailbox verification failed." : exception.GetType().Name);
+                exception is HttpRequestException ? "Microsoft Graph token acquisition failed." : exception.GetType().Name);
         }
     }
 
@@ -194,6 +180,36 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
             throw new InvalidOperationException("Microsoft Graph token response did not contain an access token.");
 
         return tokenElement.GetString()!;
+    }
+
+    private static bool HasApplicationRole(string accessToken, string requiredRole)
+    {
+        string[] parts = accessToken.Split('.');
+        if (parts.Length < 2) return false;
+
+        string payload = parts[1].Replace('-', '+').Replace('_', '/');
+        payload = payload.PadRight(payload.Length + ((4 - payload.Length % 4) % 4), '=');
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(Convert.FromBase64String(payload));
+            if (!document.RootElement.TryGetProperty("roles", out JsonElement roles) ||
+                roles.ValueKind != JsonValueKind.Array)
+            {
+                return false;
+            }
+
+            return roles.EnumerateArray().Any(role =>
+                string.Equals(role.GetString(), requiredRole, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private async Task<string> ResolveSecretAsync(string name, string fallback, CancellationToken cancellationToken)
