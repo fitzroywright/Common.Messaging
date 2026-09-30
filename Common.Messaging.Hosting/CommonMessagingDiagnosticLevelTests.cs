@@ -182,3 +182,55 @@ public sealed class MessagingChannelsRegisteredDiagnosticLevelTest(IEnumerable<I
             : EngineeringDiagnosticPolicy.Passed(TestId, Name, $"{names.Length} external messaging channel(s) are registered.", string.Join(",", names)));
     }
 }
+
+
+public sealed class MessagingProvidersReachableDiagnosticLevelTest(
+    IEnumerable<IExternalMessageChannel> channels) : IDiagnosticLevelLocalTest
+{
+    private readonly IExternalMessageChannelDiagnostic[] diagnostics =
+        (channels ?? throw new ArgumentNullException(nameof(channels)))
+            .OfType<IExternalMessageChannelDiagnostic>()
+            .ToArray();
+
+    public string TestId => "COMMON.MESSAGING.L3.PROVIDERS.REACHABLE";
+    public string Name => "External messaging providers reachable";
+    public string Owner => "Common.Messaging";
+    public EngineeringDiagnosticLevel Level => EngineeringDiagnosticLevel.Level3Verification;
+    public bool IsDestructive => false;
+
+    public async Task<EngineeringDiagnosticCheckResult> RunAsync(CancellationToken cancellationToken)
+    {
+        if (diagnostics.Length == 0)
+        {
+            return EngineeringDiagnosticPolicy.Warning(
+                TestId,
+                Name,
+                "No registered external messaging channel exposes a live provider verification probe.");
+        }
+
+        MessagingProviderHealth[] results = [];
+        foreach (IExternalMessageChannelDiagnostic diagnostic in diagnostics)
+        {
+            MessagingProviderHealth result = await diagnostic.VerifyAsync(cancellationToken).ConfigureAwait(false);
+            results = [.. results, result];
+        }
+
+        string evidence = string.Join(
+            "; ",
+            results.Select(result =>
+                $"{result.Provider}: Configured={result.Configured}, Reachable={result.Reachable}, State={result.State}, LatencyMs={result.Latency?.TotalMilliseconds:F0}, Reason={result.Reason ?? "none"}"));
+
+        MessagingProviderHealth[] failed = results.Where(result => !result.Configured || !result.Reachable).ToArray();
+        return failed.Length == 0
+            ? EngineeringDiagnosticPolicy.Passed(
+                TestId,
+                Name,
+                "All diagnostic-capable external messaging providers passed live verification.",
+                evidence)
+            : EngineeringDiagnosticPolicy.Failed(
+                TestId,
+                Name,
+                $"{failed.Length} external messaging provider(s) failed live verification.",
+                evidence);
+    }
+}
