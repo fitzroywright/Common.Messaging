@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel
+public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel, IExternalMessageChannelDiagnostic
 {
     private readonly HttpClient httpClient;
     private readonly MicrosoftGraphEmailOptions options;
@@ -21,6 +21,84 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel
     }
 
     public MessageChannel Channel => MessageChannel.MsEmail;
+
+    public async Task<MessagingProviderHealth> VerifyAsync(CancellationToken cancellationToken = default)
+    {
+        DateTimeOffset started = DateTimeOffset.UtcNow;
+        bool configured =
+            !string.IsNullOrWhiteSpace(options.TenantId) &&
+            !string.IsNullOrWhiteSpace(options.ClientId) &&
+            !string.IsNullOrWhiteSpace(options.SenderUpn);
+
+        if (!configured)
+        {
+            return new MessagingProviderHealth(
+                "Microsoft Graph Email",
+                false,
+                false,
+                MessageDeliveryState.Unknown,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow - started,
+                "TenantId, ClientId or SenderUpn is missing.");
+        }
+
+        string clientSecret = await ResolveSecretAsync(
+            options.ClientSecretName,
+            options.ClientSecret,
+            cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(clientSecret))
+        {
+            return new MessagingProviderHealth(
+                "Microsoft Graph Email",
+                false,
+                false,
+                MessageDeliveryState.Unknown,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow - started,
+                "Client secret is unavailable.");
+        }
+
+        try
+        {
+            string accessToken = await AcquireAppTokenAsync(clientSecret, cancellationToken).ConfigureAwait(false);
+            using HttpRequestMessage request = new(
+                HttpMethod.Get,
+                $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(options.SenderUpn.Trim())}/mailFolders/inbox?$select=id,displayName,totalItemCount,unreadItemCount");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new MessagingProviderHealth(
+                    "Microsoft Graph Email",
+                    true,
+                    false,
+                    MessageDeliveryState.Failed,
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow - started,
+                    $"Mailbox probe returned HTTP {(int)response.StatusCode}.");
+            }
+
+            return new MessagingProviderHealth(
+                "Microsoft Graph Email",
+                true,
+                true,
+                MessageDeliveryState.ProviderAccepted,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow - started,
+                $"Credentials are valid and sender mailbox '{options.SenderUpn.Trim()}' is accessible.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            return new MessagingProviderHealth(
+                "Microsoft Graph Email",
+                true,
+                false,
+                MessageDeliveryState.Failed,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow - started,
+                exception is HttpRequestException ? "Microsoft Graph authentication or mailbox verification failed." : exception.GetType().Name);
+        }
+    }
 
     public async Task SendAsync(
         MessageRecipient recipient,
