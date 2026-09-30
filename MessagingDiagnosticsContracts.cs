@@ -63,3 +63,12 @@ public static class MessagingDeliverySemantics
     public static MessageDeliveryState Receipt(bool delivered) =>
         delivered ? MessageDeliveryState.Delivered : MessageDeliveryState.Failed;
 }
+
+
+public interface IExternalMessageChannelDiagnostic
+{
+    MessageChannel Channel { get; }
+
+    Task<MessagingProviderHealth> VerifyAsync(
+        CancellationToken cancellationToken = default);
+}
