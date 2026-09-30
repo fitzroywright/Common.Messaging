@@ -75,6 +75,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDiagnosticLevelLocalTest, MessagingQueueAvailableDiagnosticLevelTest>();
         services.AddSingleton<IDiagnosticLevelLocalTest, MessagingDeliveryOptionsDiagnosticLevelTest>();
         services.AddSingleton<IDiagnosticLevelLocalTest, MessagingChannelsRegisteredDiagnosticLevelTest>();
+        services.AddSingleton<IDiagnosticLevelLocalTest, MessagingProvidersReachableDiagnosticLevelTest>();
         services.AddSingleton<IDiagnosticLevelLocalTest, MessagingQueueBacklogDiagnosticLevelTest>();
         services.AddSingleton<IDiagnosticLevelLocalTest, MessagingDeadLetterDiagnosticLevelTest>();
         services.AddSingleton<IDiagnosticLevelLocalTest, MessagingRetryDiagnosticLevelTest>();
