@@ -211,7 +211,7 @@ public sealed class MessagingProvidersReachableDiagnosticLevelTest(
         MessagingProviderHealth[] results = [];
         foreach (IExternalMessageChannelDiagnostic diagnostic in diagnostics)
         {
-            MessagingProviderHealth result = await diagnostic.VerifyAsync(cancellationToken).ConfigureAwait(false);
+            MessagingProviderHealth result = await diagnostic.VerifyProviderAsync(cancellationToken).ConfigureAwait(false);
             results = [.. results, result];
         }
 
