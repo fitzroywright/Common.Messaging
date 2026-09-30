@@ -1,5 +1,7 @@
 namespace Common.Messaging.Channels.MicrosoftGraph;
 
+using Common.Diagnostics;
+
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -22,7 +24,39 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
 
     public MessageChannel Channel => MessageChannel.MsEmail;
 
-    public async Task<MessagingProviderHealth> VerifyAsync(CancellationToken cancellationToken = default)
+    public string Component => "Common.Messaging";
+
+    public string Dependency => "Microsoft Graph Email";
+
+    public DependencyDiagnosticKind Kind => DependencyDiagnosticKind.Messaging;
+
+    public EngineeringDiagnosticLevel Level => EngineeringDiagnosticLevel.Level3Verification;
+
+    public async Task<DependencyVerificationResult> VerifyAsync(CancellationToken cancellationToken = default)
+    {
+        MessagingProviderHealth provider = await VerifyProviderAsync(cancellationToken).ConfigureAwait(false);
+        OperationalDiagnosticState state = provider.Configured && provider.Reachable
+            ? OperationalDiagnosticState.Healthy
+            : provider.Configured
+                ? OperationalDiagnosticState.Failed
+                : OperationalDiagnosticState.Warning;
+
+        return new DependencyVerificationResult(
+            Component,
+            Dependency,
+            Kind,
+            provider.Configured,
+            provider.Reachable,
+            provider.Reachable,
+            state,
+            provider.ObservedAtUtc,
+            provider.Latency ?? TimeSpan.Zero,
+            provider.Reason ?? (provider.Reachable ? "Microsoft Graph email provider verification passed." : "Microsoft Graph email provider verification failed."),
+            $"ProviderState={provider.State}",
+            provider.Reachable ? null : "MESSAGING_PROVIDER_UNAVAILABLE");
+    }
+
+    public async Task<MessagingProviderHealth> VerifyProviderAsync(CancellationToken cancellationToken = default)
     {
         DateTimeOffset started = DateTimeOffset.UtcNow;
         bool configured =
