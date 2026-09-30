@@ -1,5 +1,7 @@
 namespace Common.Messaging;
 
+using Common.Diagnostics;
+
 public enum MessageDeliveryState
 {
     Queued,
@@ -65,10 +67,10 @@ public static class MessagingDeliverySemantics
 }
 
 
-public interface IExternalMessageChannelDiagnostic
+public interface IExternalMessageChannelDiagnostic : IDependencyDiagnosticProbe
 {
     MessageChannel Channel { get; }
 
-    Task<MessagingProviderHealth> VerifyAsync(
+    Task<MessagingProviderHealth> VerifyProviderAsync(
         CancellationToken cancellationToken = default);
 }
