@@ -8,7 +8,7 @@ namespace Common.Messaging.UnitTests;
 public sealed class WhatsAppMessageChannelTests
 {
     [Fact]
-    public async Task SendAsync_PostsNormalizedEnvelopeToConfiguredGateway()
+    public async Task SendAsync_PostsMetaCloudApiTextMessage()
     {
         var handler = new CapturingHandler();
         var channel = new WhatsAppMessageChannel(
@@ -41,9 +41,6 @@ public sealed class WhatsAppMessageChannelTests
         Assert.Equal("whatsapp", document.RootElement.GetProperty("messaging_product").GetString());
         Assert.Equal("+18765551212", document.RootElement.GetProperty("to").GetString());
         Assert.Equal("text", document.RootElement.GetProperty("type").GetString());
-        Assert.Equal(notificationId, document.RootElement.GetProperty("notificationId").GetGuid());
-        Assert.Equal("engagement-123", document.RootElement.GetProperty("correlationId").GetString());
-        Assert.Equal("engagement-123", document.RootElement.GetProperty("metadata").GetProperty("ebolito.engagementId").GetString());
     }
 
     [Fact]
