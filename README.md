@@ -56,7 +56,7 @@ Dead letters are not silently removed by ordinary retention maintenance. They re
 
 ## Channels
 
-The messaging model supports in-app and external notification channels. Concrete integrations on `main` include SMTP, Slack, Microsoft Teams, and SMS, with the architecture remaining extensible for Graph email, WhatsApp, audio alerts, and other application-provided channels.
+The messaging model supports in-app and external notification channels. Concrete integrations on `main` include SMTP, Slack, Microsoft Teams, SMS, Graph email, and Meta WhatsApp Cloud API. WhatsApp is provider-neutral at the application boundary and uses Meta's Graph API from the shared channel implementation.
 
 A queued dispatcher sends only when both the requested channels and the recipient's preferred channels permit the channel. This preserves recipient notification preferences.
 
@@ -88,3 +88,8 @@ Applications that need to send reports or Test Email to their own sender mailbox
 can set it to `false`. Successful `sendMail` means provider acceptance, not confirmed
 mailbox delivery. Applications with an existing durable queue can call the channel
 from that queue and retain their own retry and correlation records.
+
+
+## Meta WhatsApp Cloud API
+
+The shared WhatsApp channel sends through Meta's WhatsApp Cloud API at `graph.facebook.com`. Hosts configure the Graph API version, WhatsApp Business phone-number ID, and a Common.Secrets-backed access token (`messaging/whatsapp/access-token` by default). Applications provide a recipient mobile number in international format. Message metadata may optionally specify an approved WhatsApp template name, language, and pipe-delimited body parameters for template delivery.
