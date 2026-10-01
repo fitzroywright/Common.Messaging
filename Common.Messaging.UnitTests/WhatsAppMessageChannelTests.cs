@@ -15,8 +15,10 @@ public sealed class WhatsAppMessageChannelTests
             new HttpClient(handler),
             new WhatsAppMessageOptions
             {
-                Endpoint = "https://gateway.example.test/whatsapp",
-                ApiToken = "test-token"
+                Enabled = true,
+                GraphApiVersion = "v23.0",
+                PhoneNumberId = "123456789",
+                AccessToken = "test-token"
             });
 
         var recipient = new MessageRecipient("user-1", "Customer", Mobile: "+18765551212", PreferredChannels: MessageChannel.WhatsApp);
@@ -33,10 +35,12 @@ public sealed class WhatsAppMessageChannelTests
         await channel.SendAsync(recipient, request, notificationId);
 
         var sent = Assert.Single(handler.Requests);
-        Assert.Equal("https://gateway.example.test/whatsapp", sent.Uri);
+        Assert.Equal("https://graph.facebook.com/v23.0/123456789/messages", sent.Uri);
         Assert.Equal("Bearer test-token", sent.Authorization);
         using var document = JsonDocument.Parse(sent.Body);
+        Assert.Equal("whatsapp", document.RootElement.GetProperty("messaging_product").GetString());
         Assert.Equal("+18765551212", document.RootElement.GetProperty("to").GetString());
+        Assert.Equal("text", document.RootElement.GetProperty("type").GetString());
         Assert.Equal(notificationId, document.RootElement.GetProperty("notificationId").GetGuid());
         Assert.Equal("engagement-123", document.RootElement.GetProperty("correlationId").GetString());
         Assert.Equal("engagement-123", document.RootElement.GetProperty("metadata").GetProperty("ebolito.engagementId").GetString());
@@ -47,7 +51,7 @@ public sealed class WhatsAppMessageChannelTests
     {
         var channel = new WhatsAppMessageChannel(
             new HttpClient(new CapturingHandler()),
-            new WhatsAppMessageOptions { Endpoint = "https://gateway.example.test/whatsapp" });
+            new WhatsAppMessageOptions { Enabled = true, PhoneNumberId = "123456789", AccessToken = "test-token" });
 
         var recipient = new MessageRecipient("user-2", "No Mobile");
         var request = new MessageRequest { Body = "Hello", Channels = MessageChannel.WhatsApp };
