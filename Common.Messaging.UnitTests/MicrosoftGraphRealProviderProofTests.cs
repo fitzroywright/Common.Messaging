@@ -10,11 +10,11 @@ public sealed class MicrosoftGraphRealProviderProofTests
         "Configure a dedicated Microsoft 365 diagnostic recipient before running this proof.")]
     public async Task Microsoft365_RealProviderSend_IsAcceptedByGraph()
     {
-        string? tenantId = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_TENANT_ID");
-        string? clientId = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_CLIENT_ID");
-        string? clientSecret = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_CLIENT_SECRET");
-        string? sender = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_SENDER_UPN");
-        string? recipient = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_TEST_RECIPIENT");
+        string tenantId = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_TENANT_ID")!;
+        string clientId = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_CLIENT_ID")!;
+        string clientSecret = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_CLIENT_SECRET")!;
+        string sender = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_SENDER_UPN")!;
+        string recipient = Environment.GetEnvironmentVariable("COMMON_MESSAGING_M365_TEST_RECIPIENT")!;
 
         MicrosoftGraphEmailMessageChannel channel = new(
             new HttpClient(),
