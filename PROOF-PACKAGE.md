@@ -65,3 +65,29 @@ It does **not** currently define a provider-neutral canonical conversation/threa
 cannot honestly be certified at the Common.Messaging layer yet.
 
 Those behaviors may exist in consuming applications, but application-specific conversation persistence is not equivalent to proving Common.Messaging itself. The next architecture change should be additive: introduce canonical conversation/message contracts and persistence behind Common.Messaging without embedding Request Portal, Studio, or FFP Manager rules in the common library.
+
+
+## Current proof status (2026-10-02)
+
+Completed with the real Microsoft 365 provider:
+
+- baseline Common.Messaging suite green;
+- real Microsoft Graph application token acquisition passed;
+- real Graph sendMail proof passed;
+- attachment send passed;
+- recipient mailbox receipt was manually observed;
+- intentionally invalid client secret failed cleanly at token acquisition;
+- restoring the valid secret returned the same proof to a passing state.
+
+Operational discovery during proof:
+
+- the Request Portal Microsoft Graph application client secret had expired;
+- the secret was rotated and the updated value restored successful token acquisition and mail sending.
+
+Intentionally deferred:
+
+- valid identity without `Mail.Send` authorization;
+- other authorization-specific provider failures;
+- broader network interruption fault injection.
+
+These deferred authorization tests are not counted as passed. Successful Graph acceptance remains distinct from confirmed recipient delivery; this proof has both provider acceptance and one manually observed recipient delivery.
