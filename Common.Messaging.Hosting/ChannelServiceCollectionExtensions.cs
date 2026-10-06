@@ -39,6 +39,8 @@ public static class ChannelServiceCollectionExtensions
             new MicrosoftGraphEmailMessageChannel(new HttpClient(), options, provider.GetService<IChannelSecretResolver>()));
         services.AddSingleton<IExternalMessageChannel>(provider =>
             provider.GetRequiredService<MicrosoftGraphEmailMessageChannel>());
+        services.AddSingleton<MicrosoftGraphMailboxClient>(provider =>
+            new MicrosoftGraphMailboxClient(new HttpClient(), options, provider.GetService<IChannelSecretResolver>()));
         services.AddSingleton<IDependencyDiagnosticProbe>(provider =>
             provider.GetRequiredService<MicrosoftGraphEmailMessageChannel>());
         return services;
