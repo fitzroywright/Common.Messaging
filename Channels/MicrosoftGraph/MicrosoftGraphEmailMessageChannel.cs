@@ -3,6 +3,7 @@ namespace Common.Messaging.Channels.MicrosoftGraph;
 using Common.Diagnostics;
 
 using System.Net.Http.Headers;
+using System.Net.Mail;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -138,6 +139,14 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
         if (options.SkipSenderRecipient && string.Equals(options.SenderUpn.Trim(), recipient.Email.Trim(), StringComparison.OrdinalIgnoreCase))
             return;
 
+        string? replyTo = null;
+        if (request.Metadata.TryGetValue("ReplyTo", out string? requestedReplyTo) && !string.IsNullOrWhiteSpace(requestedReplyTo))
+        {
+            if (!MailAddress.TryCreate(requestedReplyTo.Trim(), out MailAddress? parsedReplyTo))
+                throw new InvalidOperationException("Microsoft Graph email ReplyTo metadata must contain a valid email address.");
+            replyTo = parsedReplyTo.Address;
+        }
+
         // Use the small-attachment sendMail API. Larger reports must not be silently truncated.
         if (request.Attachments.Sum(attachment => (long)attachment.Content.Length) > 2_500_000)
             throw new InvalidOperationException("Microsoft Graph email attachments exceed the supported 2.5 MB total. Split the report before retrying.");
@@ -152,6 +161,9 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
                 {
                     new { emailAddress = new { address = recipient.Email.Trim() } }
                 },
+                replyTo = string.IsNullOrWhiteSpace(replyTo)
+                    ? Array.Empty<object>()
+                    : new object[] { new { emailAddress = new { address = replyTo } } },
                 attachments = request.Attachments.Select(attachment => new Dictionary<string, object>
                 {
                     ["@odata.type"] = "#microsoft.graph.fileAttachment",
