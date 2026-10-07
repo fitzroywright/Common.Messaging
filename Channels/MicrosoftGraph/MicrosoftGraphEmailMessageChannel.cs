@@ -151,27 +151,30 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
         if (request.Attachments.Sum(attachment => (long)attachment.Content.Length) > 2_500_000)
             throw new InvalidOperationException("Microsoft Graph email attachments exceed the supported 2.5 MB total. Split the report before retrying.");
 
+        var graphMessage = new Dictionary<string, object?>
+        {
+            ["subject"] = string.IsNullOrWhiteSpace(request.Title) ? "(no subject)" : request.Title,
+            ["body"] = new { contentType = request.BodyIsHtml ? "HTML" : "Text", content = request.Body ?? string.Empty },
+            ["toRecipients"] = new[]
+            {
+                new { emailAddress = new { address = recipient.Email.Trim() } }
+            },
+            ["attachments"] = request.Attachments.Select(attachment => new Dictionary<string, object>
+            {
+                ["@odata.type"] = "#microsoft.graph.fileAttachment",
+                ["name"] = attachment.FileName,
+                ["contentType"] = attachment.ContentType,
+                ["contentBytes"] = Convert.ToBase64String(attachment.Content)
+            }).ToArray()
+        };
+        if (!string.IsNullOrWhiteSpace(replyTo))
+        {
+            graphMessage["replyTo"] = new[] { new { emailAddress = new { address = replyTo } } };
+        }
+
         byte[] payload = JsonSerializer.SerializeToUtf8Bytes(new
         {
-            message = new
-            {
-                subject = string.IsNullOrWhiteSpace(request.Title) ? "(no subject)" : request.Title,
-                body = new { contentType = request.BodyIsHtml ? "HTML" : "Text", content = request.Body ?? string.Empty },
-                toRecipients = new[]
-                {
-                    new { emailAddress = new { address = recipient.Email.Trim() } }
-                },
-                replyTo = string.IsNullOrWhiteSpace(replyTo)
-                    ? Array.Empty<object>()
-                    : new object[] { new { emailAddress = new { address = replyTo } } },
-                attachments = request.Attachments.Select(attachment => new Dictionary<string, object>
-                {
-                    ["@odata.type"] = "#microsoft.graph.fileAttachment",
-                    ["name"] = attachment.FileName,
-                    ["contentType"] = attachment.ContentType,
-                    ["contentBytes"] = Convert.ToBase64String(attachment.Content)
-                }).ToArray()
-            },
+            message = graphMessage,
             saveToSentItems = true
         });
         if (payload.Length > 4_000_000)
