@@ -177,14 +177,31 @@ public sealed class MicrosoftGraphEmailMessageChannel : IExternalMessageChannel,
             HttpMethod.Post,
             $"https://graph.microsoft.com/v1.0/users/{Uri.EscapeDataString(options.SenderUpn.Trim())}/sendMail");
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        message.Content = new ByteArrayContent(payload);
-        message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        bool routed = request.Metadata?.ContainsKey("Email.MessageId") == true;
+        if (routed)
+        {
+            string mime = MicrosoftGraphMimeEnvelope.Build(recipient, request, notificationId, options.SenderUpn);
+            if (mime.Length > 4_000_000) throw new InvalidOperationException("Microsoft Graph MIME payload exceeds 4 MB.");
+            message.Content = new StringContent(mime, System.Text.Encoding.ASCII, "text/plain");
+        }
+        else
+        {
+            message.Content = new ByteArrayContent(payload);
+            message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
 
-        using HttpResponseMessage response = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false);
+        HttpResponseMessage sendResponse;
+        try { sendResponse = await httpClient.SendAsync(message, cancellationToken).ConfigureAwait(false); }
+        catch (Exception ex) when (routed && ex is HttpRequestException or OperationCanceledException)
+        { throw new ExternalDeliveryOutcomeUnknownException(ex); }
+        using HttpResponseMessage response = sendResponse;
         if (!response.IsSuccessStatusCode)
         {
+            if (routed && (int)response.StatusCode >= 500)
+                throw new ExternalDeliveryOutcomeUnknownException(new HttpRequestException("Microsoft Graph send returned an uncertain server response.", null, response.StatusCode));
             string detail = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            throw new HttpRequestException($"Microsoft Graph email send failed with HTTP {(int)response.StatusCode}: {Sanitize(detail)}");
+            var failure = new HttpRequestException($"Microsoft Graph email send failed with HTTP {(int)response.StatusCode}: {Sanitize(detail)}", null, response.StatusCode);
+            throw failure;
         }
     }
 

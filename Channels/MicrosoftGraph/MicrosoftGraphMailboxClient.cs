@@ -130,7 +130,7 @@ public sealed class MicrosoftGraphMailboxClient
     {
         int pageSize = Math.Clamp(options.InboundPageSize, 1, 100);
         string mailbox = Uri.EscapeDataString(options.SenderUpn.Trim());
-        return $"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages/delta?$select=id,conversationId,subject,receivedDateTime,from,toRecipients,ccRecipients,body,internetMessageHeaders,hasAttachments&$top={pageSize}";
+        return $"https://graph.microsoft.com/v1.0/users/{mailbox}/mailFolders/inbox/messages/delta?$select=id,internetMessageId,conversationId,subject,receivedDateTime,from,toRecipients,ccRecipients,body,internetMessageHeaders,hasAttachments&$top={pageSize}";
     }
 
     private async Task<IReadOnlyList<MicrosoftGraphInboundAttachment>> GetAttachmentsAsync(string token, string messageId, CancellationToken cancellationToken)
@@ -148,11 +148,11 @@ public sealed class MicrosoftGraphMailboxClient
             if (page is null) throw new InvalidOperationException("Microsoft Graph returned an empty attachment response.");
             foreach (GraphAttachment a in page.Value)
             {
-                if (!string.Equals(a.ODataType, "#microsoft.graph.fileAttachment", StringComparison.OrdinalIgnoreCase) || a.IsInline || string.IsNullOrWhiteSpace(a.ContentBytes)) continue;
+                if (!string.Equals(a.ODataType, "#microsoft.graph.fileAttachment", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(a.ContentBytes)) continue;
                 byte[] bytes;
                 try { bytes = Convert.FromBase64String(a.ContentBytes); }
                 catch (FormatException ex) { throw new InvalidOperationException($"Microsoft Graph returned invalid base64 content for attachment '{a.Name}'.", ex); }
-                if (bytes.Length > 0) result.Add(new(string.IsNullOrWhiteSpace(a.Name) ? "attachment.bin" : a.Name, string.IsNullOrWhiteSpace(a.ContentType) ? "application/octet-stream" : a.ContentType, bytes, false));
+                if (bytes.Length > 0) result.Add(new(string.IsNullOrWhiteSpace(a.Name) ? "attachment.bin" : a.Name, string.IsNullOrWhiteSpace(a.ContentType) ? "application/octet-stream" : a.ContentType, bytes, a.IsInline));
             }
             nextUrl = page.NextLink;
         }
@@ -166,11 +166,11 @@ public sealed class MicrosoftGraphMailboxClient
     private static MicrosoftGraphInboundMessage ToInboundMessage(GraphMessage m, IReadOnlyList<MicrosoftGraphInboundAttachment> attachments)
     {
         string address = m.From!.EmailAddress!.Address!;
-        return new(m.Id!, m.ConversationId, string.IsNullOrWhiteSpace(m.From.EmailAddress.Name) ? address : m.From.EmailAddress.Name!,
+        return new(m.InternetMessageId ?? m.Id!, m.ConversationId, string.IsNullOrWhiteSpace(m.From.EmailAddress.Name) ? address : m.From.EmailAddress.Name!,
             address, Addresses(m.ToRecipients), Addresses(m.CcRecipients),
             m.InternetMessageHeaders.Where(x => !string.IsNullOrWhiteSpace(x.Name)).GroupBy(x => x.Name!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.Last().Value ?? string.Empty, StringComparer.OrdinalIgnoreCase),
-            m.Subject!, m.Body!.Content, m.ReceivedDateTime ?? DateTimeOffset.UtcNow, attachments);
+            m.Subject!, m.Body!.Content, m.ReceivedDateTime ?? DateTimeOffset.UtcNow, attachments, m.Id);
     }
 
     private static IReadOnlyList<string> Addresses(IEnumerable<GraphRecipient> values) =>
@@ -180,7 +180,7 @@ public sealed class MicrosoftGraphMailboxClient
     private sealed class GraphMessageDeltaPage { [JsonPropertyName("value")] public List<GraphMessage> Value { get; init; } = []; [JsonPropertyName("@odata.nextLink")] public string? NextLink { get; init; } [JsonPropertyName("@odata.deltaLink")] public string? DeltaLink { get; init; } }
     private sealed class GraphAttachmentPage { [JsonPropertyName("value")] public List<GraphAttachment> Value { get; init; } = []; [JsonPropertyName("@odata.nextLink")] public string? NextLink { get; init; } }
     private sealed class GraphAttachment { [JsonPropertyName("@odata.type")] public string? ODataType { get; init; } [JsonPropertyName("name")] public string? Name { get; init; } [JsonPropertyName("contentType")] public string? ContentType { get; init; } [JsonPropertyName("isInline")] public bool IsInline { get; init; } [JsonPropertyName("contentBytes")] public string? ContentBytes { get; init; } }
-    private sealed class GraphMessage { [JsonPropertyName("id")] public string? Id { get; init; } [JsonPropertyName("conversationId")] public string? ConversationId { get; init; } [JsonPropertyName("subject")] public string? Subject { get; init; } [JsonPropertyName("receivedDateTime")] public DateTimeOffset? ReceivedDateTime { get; init; } [JsonPropertyName("from")] public GraphRecipient? From { get; init; } [JsonPropertyName("toRecipients")] public List<GraphRecipient> ToRecipients { get; init; } = []; [JsonPropertyName("ccRecipients")] public List<GraphRecipient> CcRecipients { get; init; } = []; [JsonPropertyName("internetMessageHeaders")] public List<GraphHeader> InternetMessageHeaders { get; init; } = []; [JsonPropertyName("body")] public GraphBody? Body { get; init; } [JsonPropertyName("hasAttachments")] public bool HasAttachments { get; init; } [JsonPropertyName("@removed")] public object? Removed { get; init; } }
+    private sealed class GraphMessage { [JsonPropertyName("id")] public string? Id { get; init; } [JsonPropertyName("internetMessageId")] public string? InternetMessageId { get; init; } [JsonPropertyName("conversationId")] public string? ConversationId { get; init; } [JsonPropertyName("subject")] public string? Subject { get; init; } [JsonPropertyName("receivedDateTime")] public DateTimeOffset? ReceivedDateTime { get; init; } [JsonPropertyName("from")] public GraphRecipient? From { get; init; } [JsonPropertyName("toRecipients")] public List<GraphRecipient> ToRecipients { get; init; } = []; [JsonPropertyName("ccRecipients")] public List<GraphRecipient> CcRecipients { get; init; } = []; [JsonPropertyName("internetMessageHeaders")] public List<GraphHeader> InternetMessageHeaders { get; init; } = []; [JsonPropertyName("body")] public GraphBody? Body { get; init; } [JsonPropertyName("hasAttachments")] public bool HasAttachments { get; init; } [JsonPropertyName("@removed")] public object? Removed { get; init; } }
     private sealed class GraphHeader { [JsonPropertyName("name")] public string? Name { get; init; } [JsonPropertyName("value")] public string? Value { get; init; } }
     private sealed class GraphRecipient { [JsonPropertyName("emailAddress")] public GraphAddress? EmailAddress { get; init; } }
     private sealed class GraphAddress { [JsonPropertyName("name")] public string? Name { get; init; } [JsonPropertyName("address")] public string? Address { get; init; } }
@@ -188,7 +188,7 @@ public sealed class MicrosoftGraphMailboxClient
 }
 
 public sealed record MicrosoftGraphInboxDeltaBatch(IReadOnlyList<MicrosoftGraphInboundMessage> Messages, string? DeltaLink);
-public sealed record MicrosoftGraphInboundMessage(string MessageId, string? ConversationId, string FromName, string FromAddress, IReadOnlyList<string> ToAddresses, IReadOnlyList<string> CcAddresses, IReadOnlyDictionary<string,string> Headers, string Subject, string Body, DateTimeOffset ReceivedAtUtc, IReadOnlyList<MicrosoftGraphInboundAttachment> FileAttachments);
+public sealed record MicrosoftGraphInboundMessage(string MessageId, string? ConversationId, string FromName, string FromAddress, IReadOnlyList<string> ToAddresses, IReadOnlyList<string> CcAddresses, IReadOnlyDictionary<string,string> Headers, string Subject, string Body, DateTimeOffset ReceivedAtUtc, IReadOnlyList<MicrosoftGraphInboundAttachment> FileAttachments, string? ProviderMessageId = null);
 public sealed record MicrosoftGraphInboundAttachment(string FileName, string ContentType, byte[] Content, bool IsInline);
 public sealed record MicrosoftGraphMailboxVerification(string State, bool AuthenticationSucceeded, bool MailboxAccessible, bool TenantConfigured, bool ClientConfigured, bool ClientSecretConfigured, bool MailboxConfigured, int? GraphStatusCode, string Detail);
 public sealed class MicrosoftGraphDeltaTokenExpiredException : Exception
