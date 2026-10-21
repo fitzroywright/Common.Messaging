@@ -3,6 +3,7 @@ namespace Common.Messaging.Channels.MicrosoftGraph;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 public sealed class MicrosoftGraphMailboxClient
@@ -136,14 +137,14 @@ public sealed class MicrosoftGraphMailboxClient
     private async Task<IReadOnlyList<MicrosoftGraphInboundAttachment>> GetAttachmentsAsync(string token, string messageId, CancellationToken cancellationToken)
     {
         string mailbox = Uri.EscapeDataString(options.SenderUpn.Trim());
-        string? nextUrl = $"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{Uri.EscapeDataString(messageId)}/attachments?$select=id,name,contentType,isInline,@odata.type,contentBytes";
+        string? nextUrl = $"https://graph.microsoft.com/v1.0/users/{mailbox}/messages/{Uri.EscapeDataString(messageId)}/attachments";
         List<MicrosoftGraphInboundAttachment> result = [];
         while (!string.IsNullOrWhiteSpace(nextUrl))
         {
             using HttpRequestMessage request = new(HttpMethod.Get, nextUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            await EnsureAttachmentSuccessAsync(response, cancellationToken).ConfigureAwait(false);
             GraphAttachmentPage? page = await response.Content.ReadFromJsonAsync<GraphAttachmentPage>(cancellationToken: cancellationToken).ConfigureAwait(false);
             if (page is null) throw new InvalidOperationException("Microsoft Graph returned an empty attachment response.");
             foreach (GraphAttachment a in page.Value)
@@ -158,6 +159,43 @@ public sealed class MicrosoftGraphMailboxClient
         }
         return result;
     }
+
+    private static async Task EnsureAttachmentSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode) return;
+
+        // Log identifiers only: provider messages can contain mailbox or attachment data.
+        string code = "Unavailable";
+        string requestId = response.Headers.TryGetValues("request-id", out var ids)
+            ? SafeDiagnosticValue(ids.FirstOrDefault()) : "Unavailable";
+        try
+        {
+            using JsonDocument document = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("error", out var error) &&
+                error.ValueKind == JsonValueKind.Object)
+            {
+                if (error.TryGetProperty("code", out var errorCode) && errorCode.ValueKind == JsonValueKind.String)
+                    code = SafeDiagnosticValue(errorCode.GetString());
+                if (requestId == "Unavailable" && error.TryGetProperty("innerError", out var inner) &&
+                    inner.ValueKind == JsonValueKind.Object &&
+                    inner.TryGetProperty("request-id", out var id) && id.ValueKind == JsonValueKind.String)
+                    requestId = SafeDiagnosticValue(id.GetString());
+            }
+        }
+        catch (JsonException) { /* Non-JSON errors still retain HTTP status and request ID. */ }
+        catch (IOException) { /* Preserve the original provider failure if the error body cannot be read. */ }
+
+        throw new HttpRequestException(
+            $"Microsoft Graph attachment listing failed. HTTP {(int)response.StatusCode}; GraphCode={code}; RequestId={requestId}. Inbox checkpoint was not advanced.",
+            null, response.StatusCode);
+    }
+
+    private static string SafeDiagnosticValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "Unavailable" :
+        new string(value.Take(128).Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '_').ToArray());
 
     private static bool IsUsable(GraphMessage m) =>
         !string.IsNullOrWhiteSpace(m.Id) && !string.IsNullOrWhiteSpace(m.From?.EmailAddress?.Address) &&
