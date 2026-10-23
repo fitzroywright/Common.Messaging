@@ -38,6 +38,47 @@ public sealed class MicrosoftGraphEmailPayloadTests
     }
 
     [Fact]
+    public async Task ReplyToMetadataReachesGraphWithoutChangingSharedSender()
+    {
+        PayloadHandler handler = new();
+        MicrosoftGraphEmailMessageChannel channel = CreateChannel(handler);
+        await channel.SendAsync(
+            new MessageRecipient("client", "Client", "client@example.org"),
+            new MessageRequest
+            {
+                Title = "Studio message",
+                Body = "Hello",
+                Metadata = new Dictionary<string,string>
+                {
+                    ["ReplyTo"] = "fwright@bryanstudiosltd.com"
+                }
+            },
+            Guid.NewGuid());
+
+        using JsonDocument document = JsonDocument.Parse(Assert.IsType<string>(handler.Payload));
+        JsonElement message = document.RootElement.GetProperty("message");
+        Assert.Equal(
+            "fwright@bryanstudiosltd.com",
+            message.GetProperty("replyTo")[0].GetProperty("emailAddress").GetProperty("address").GetString());
+    }
+
+    [Fact]
+    public async Task InvalidReplyToMetadataFailsBeforeGraphSend()
+    {
+        PayloadHandler handler = new();
+        MicrosoftGraphEmailMessageChannel channel = CreateChannel(handler);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => channel.SendAsync(
+            new MessageRecipient("client", "Client", "client@example.org"),
+            new MessageRequest
+            {
+                Body = "Hello",
+                Metadata = new Dictionary<string,string> { ["ReplyTo"] = "not-an-email" }
+            },
+            Guid.NewGuid()));
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
     public async Task OversizedAttachmentsFailBeforeSending()
     {
         PayloadHandler handler = new();
