@@ -1,0 +1,16 @@
+D:\Projects\Common\Common.Messaging\bin\Debug\net10.0\Common.Messaging.deps.json
+D:\Projects\Common\Common.Messaging\bin\Debug\net10.0\Common.Messaging.dll
+D:\Projects\Common\Common.Messaging\bin\Debug\net10.0\Common.Messaging.pdb
+D:\Projects\Common\Common.Messaging\bin\Debug\net10.0\Common.Diagnostics.dll
+D:\Projects\Common\Common.Messaging\bin\Debug\net10.0\Common.Diagnostics.pdb
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.csproj.AssemblyReference.cache
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.AssemblyInfoInputs.cache
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.AssemblyInfo.cs
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.csproj.CoreCompileInputs.cache
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.sourcelink.json
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.M.5206A043.Up2Date
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.dll
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\refint\Common.Messaging.dll
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\Common.Messaging.pdb
+D:\Projects\Common\Common.Messaging\obj\Debug\net10.0\ref\Common.Messaging.dll
