@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Common.Messaging.Hosting")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b2fb8491ef9e765c4e271f32eab8086a4d5bc8cd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1d7a55d2952abe1fdddae3a188f78939c7f96288")]
 [assembly: System.Reflection.AssemblyProductAttribute("Common.Messaging.Hosting")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Common.Messaging.Hosting")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

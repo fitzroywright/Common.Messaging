@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Reusable in-app and external messaging primitives.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+184a3194c2d4dc1ff6ae5b75c194c19692a8b361")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1d7a55d2952abe1fdddae3a188f78939c7f96288")]
 [assembly: System.Reflection.AssemblyProductAttribute("Common.Messaging")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Common.Messaging")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
