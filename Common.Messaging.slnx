@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="Common.Messaging.csproj" />
+  <Project Path="Common.Messaging.Hosting/Common.Messaging.Hosting.csproj" />
+  <Project Path="Common.Messaging.UnitTests/Common.Messaging.UnitTests.csproj" />
 </Solution>
