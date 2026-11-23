@@ -12,3 +12,6 @@ TestResults/
 TestResults/
 *.user
 *.suo
+
+**/bin/
+**/obj/
